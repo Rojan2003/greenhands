@@ -44,3 +44,15 @@ class ForbiddenError(AppError):
     """The user is authenticated but not allowed to do this."""
 
     status_code = 403
+
+
+class DatabaseError(AppError):
+    """The database could not be reached or returned an unexpected error (FR-8)."""
+
+    status_code = 503
+
+    def __init__(
+        self,
+        message: str = "Database is not available. Is MySQL running in XAMPP?",
+    ) -> None:
+        super().__init__(message)
