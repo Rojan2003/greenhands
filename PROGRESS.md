@@ -19,14 +19,27 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] README, REQUIREMENTS.md (SRS mapping), PROGRESS.md
 - [ ] `docs/design/erd.png` and `docs/design/reference.png` added to the repo (needs the files)
 
-## Phase 1: Authentication
-- [ ] Volunteer sign-up (Pydantic validation, unique username/email, password rules) creates user + profile
-- [ ] Login / logout with one generic error message; login required for every page except sign-up
-- [ ] Lockout after 5 failed attempts for 15 minutes; counter resets on success
-- [ ] Inactive accounts blocked; role-based route protection (decorator + service check)
-- [ ] Rate limit on login route
-- [ ] Base layout (header + sidebar) and split-screen login page from the design
-- [ ] Tests (service, controller, e2e login)
+## Phase 1: Authentication (in progress, branch `feat/auth`)
+- [x] Pydantic schemas `SignUpSchema` / `LoginSchema` (`app/schemas/auth.py`) + `validate()` helper
+- [x] `AuthService` (`app/services/auth_service.py`): sign-up creates user + profile + audit entry in one transaction; generic login error; 5 failures -> 15-minute lockout; counter reset on success; inactive accounts blocked
+- [x] Role checks: `role_required` decorator + `require_role()` for services (`app/auth/roles.py`)
+- [x] Login required app-wide except login, sign-up, health (`before_request` in `app/__init__.py`)
+- [x] Rate limit on login (10/min) and sign-up (5/min)
+- [x] Controllers: `auth` (login/logout/signup), `volunteer` dashboard, `admin` dashboard (+ `DashboardService`)
+- [x] Templates: `base.html` header + sidebar (mobile toggle), split-screen login, sign-up, both dashboards, SVG placeholder images
+- [ ] **Not yet verified in a browser or test client** (smoke test was not run before stopping)
+- [ ] Unit tests for `AuthService` and schemas (happy + failure), integration tests for sign-up / login / lockout, Playwright e2e login test (Chromium is installed)
+- [ ] REQUIREMENTS.md rows FR-1, FR-2, FR-4 need the Phase 1 files and tests filled in
+
+### Next session
+1. Run a smoke test of login / logout / sign-up, fix anything that breaks.
+2. Write the Phase 1 tests listed above, then update REQUIREMENTS.md.
+3. Open the pull request for `feat/project-setup` once `main` exists (see open questions).
+
+### Open questions
+- **Remote `main` branch:** GitHub has no `main` yet (the repo was empty, so `feat/project-setup` became the default). Approve pushing the first scaffolding commit to `main` so pull requests can be opened.
+- `docs/design/erd.png` and `docs/design/reference.png` are still missing from the repo.
+- "Forgot password?" link and "Change Photo" button: build now or later? (needed before Phase 2)
 
 ## Phase 2: Volunteer profile
 - [ ] View / edit profile with validation

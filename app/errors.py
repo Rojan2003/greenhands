@@ -12,20 +12,17 @@ class AppError(Exception):
 
     status_code = 400
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, errors: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.message = message
+        # field name -> human readable message, so forms can show errors inline
+        self.errors: dict[str, str] = errors or {}
 
 
 class ValidationError(AppError):
     """Input failed validation (bad types, lengths, missing fields, rule violations)."""
 
     status_code = 422
-
-    def __init__(self, message: str, errors: dict[str, str] | None = None) -> None:
-        super().__init__(message)
-        # field name -> human readable message, so forms can show errors inline
-        self.errors: dict[str, str] = errors or {}
 
 
 class NotFoundError(AppError):
