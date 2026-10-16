@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Error {{ code }} - GreenHands{% endblock %}
 {% block content %}
-<section class="card p-8 text-center">
+<section class="card p-8 text-center max-w-xl mx-auto">
   <h1 class="text-5xl font-bold text-brand">{{ code }}</h1>
   <p class="mt-4 text-gray-600">{{ message }}</p>
+  {% if code == 503 %}
+  <p class="mt-2 text-sm text-gray-400">Open the XAMPP Control Panel and start MySQL, then refresh this page.</p>
+  {% endif %}
   <a href="{{ url_for('main.index') }}" class="btn-primary mt-6 inline-block">Back to home</a>
 </section>
 {% endblock %}

@@ -2,7 +2,10 @@
 
 `create_app()` builds and returns a fully configured Flask app. Keeping it in a
 function (instead of a global) lets tests create isolated apps with different
-settings, and lets `flask --app app run` discover it automatically.
+settings, and lets `flask --app app run --debug` discover it automatically.
+
+MVC wiring: controllers (app/controllers) are registered here; they call
+services, which call DAOs, which use the DatabaseManager singleton.
 """
 
 from __future__ import annotations
@@ -11,11 +14,10 @@ import logging
 from typing import Any
 
 from flask import Flask, render_template
-from sqlalchemy.engine import Engine
 from werkzeug.exceptions import HTTPException
 
 from app.config import Config
-from app.db import init_db
+from app.database import DatabaseManager
 from app.errors import AppError
 from app.extensions import csrf, limiter, login_manager
 from app.logging_config import configure_logging
@@ -26,15 +28,13 @@ log = logging.getLogger(__name__)
 def create_app(
     config_object: type[Config] | None = None,
     *,
-    engine: Engine | None = None,
     overrides: dict[str, Any] | None = None,
 ) -> Flask:
     """Build the app.
 
     Args:
         config_object: settings class (defaults to `Config`; tests pass `TestConfig`).
-        engine: optional pre-built SQLAlchemy engine (tests pass one for the test DB).
-        overrides: extra config values applied last.
+        overrides: extra config values applied last (tests use this).
     """
     configure_logging()
 
@@ -47,8 +47,14 @@ def create_app(
         msg = "SECRET_KEY is not set. Copy .env.example to .env and set a random value."
         raise RuntimeError(msg)
 
-    # --- database ---
-    init_db(app, engine=engine)
+    # --- database: one DatabaseManager for the whole app (Singleton) ---
+    db = DatabaseManager()
+    app.extensions["db_manager"] = db
+
+    @app.teardown_appcontext
+    def close_db_connection(_exc: BaseException | None) -> None:
+        # Give the thread's connection back at the end of every request.
+        db.close()
 
     # --- extensions ---
     csrf.init_app(app)
@@ -58,28 +64,27 @@ def create_app(
     login_manager.login_message = "Please log in to continue."
     login_manager.login_message_category = "warning"
 
-    # --- blueprints ---
+    # --- controllers (blueprints) ---
     from app.auth.loader import register_user_loader
-    from app.blueprints.main import main_bp
+    from app.controllers.main import main_bp
 
     register_user_loader(login_manager)
     app.register_blueprint(main_bp)
 
-    # --- error handling ---
     register_error_handlers(app)
-
     log.info("app created", extra={"action": "startup"})
     return app
 
 
 def register_error_handlers(app: Flask) -> None:
-    """Turn typed service errors and HTTP errors into friendly pages."""
+    """Turn typed service errors and HTTP errors into friendly pages (FR-8)."""
 
     @app.errorhandler(AppError)
     def handle_app_error(err: AppError) -> tuple[str, int]:
-        return render_template("errors/error.html", code=err.status_code, message=err.message), (
-            err.status_code
-        )
+        if err.status_code >= 500:
+            log.error("application error: %s", err.message, extra={"action": "app_error"})
+        page = render_template("errors/error.html", code=err.status_code, message=err.message)
+        return page, err.status_code
 
     @app.errorhandler(HTTPException)
     def handle_http_error(err: HTTPException) -> tuple[str, int]:
