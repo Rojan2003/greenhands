@@ -96,8 +96,10 @@ def make_activity(db: DatabaseManager, admin: Admin, **overrides: Any) -> Activi
 # ---- schema ----
 def test_schema_has_all_tables_with_innodb_utf8mb4(clean_db: DatabaseManager) -> None:
     rows = clean_db.fetch_all(
-        "SELECT table_name, engine, table_collation FROM information_schema.tables "
-        "WHERE table_schema = DATABASE()"
+        # Aliases: MySQL 8 returns these columns in UPPER CASE, MariaDB in lower case.
+        "SELECT table_name AS table_name, engine AS engine, "
+        "table_collation AS table_collation "
+        "FROM information_schema.tables WHERE table_schema = DATABASE()"
     )
     assert {r["table_name"] for r in rows} == EXPECTED_TABLES
     for r in rows:
