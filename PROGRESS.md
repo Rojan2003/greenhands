@@ -3,7 +3,7 @@
 A feature is **done** only when it has validation, error handling, tests (one success +
 one failure case), audit logging where needed, and a responsive UI.
 
-## Where we are (updated 2026-10-17, evening)
+## Where we are (updated 2026-10-17, night)
 
 | Phase | Status | Branch / PR |
 |---|---|---|
@@ -15,12 +15,12 @@ one failure case), audit logging where needed, and a responsive UI.
 | 5 Register for an activity | **Merged** | `feat/register`, PR #8 |
 | 6 Admin review of registrations | **Merged** | `feat/admin-review`, PR #9 |
 | 7 My registrations, schedule, notifications | **Merged** | `feat/my-registrations`, PR #10 |
-| 8 Reports and audit logs | **Ready for review** (532 unit+integration, 9 e2e) | `feat/reports` (built in the main folder) |
-| 9 Polish and deploy | Not started | `feat/polish`, off `main` |
+| 8 Reports and audit logs | **Merged** | `feat/reports`, PR #11 |
+| 9 Polish and deploy | **Ready for review** (533 unit+integration, 12 e2e) | `feat/polish` (built in the main folder) |
 
-`main` is on GitHub (default branch) and only moves through pull requests. 218 unit +
-integration tests and 3 Playwright tests pass on `main`; CI (ruff, mypy, pytest, e2e) is
-green on every merged PR.
+`main` is on GitHub (default branch) and only moves through pull requests. 532 unit +
+integration tests and 9 Playwright tests pass on `main` (Phases 0-8); CI (ruff, mypy, pytest,
+e2e) is green on every merged PR.
 
 ### How to resume work on this machine
 1. Start MySQL from the terminal: `.\scripts\mysql.ps1` (XAMPP's own MariaDB; `stop` / `status` work too).
@@ -43,11 +43,10 @@ patterns to keep naming in code and in the defense: Singleton (`DatabaseManager`
 per table, all SQL), Template Method (`BaseReport`).
 
 ### Next steps, in order
-1. Phase 8 (`feat/reports`): review, PR, merge.
-2. Phase 9 (polish and deploy): responsive + accessible pass over every page, empty / error /
-   loading states, demo seed data (`seed.py`), README screenshots, 15-minute demo checklist,
-   deployment guide (ask before Apache / mod_wsgi). Also the two design images and the "Protect
-   main" ruleset from Open items.
+1. Phase 9 (`feat/polish`): review, PR, merge. After that every phase of the brief is on `main`.
+2. Rojan: add `docs/design/erd.png` and `docs/design/reference.png`, create the "Protect main"
+   ruleset (Open items below), and decide the deployment target (`docs/DEPLOYMENT.md` section 2).
+3. Before the defense: `python scripts\init_db.py && python seed.py`, then walk through `docs/DEMO.md` once.
 
 ### Open items
 - **Branch protection:** create the "Protect main" ruleset in GitHub (Settings -> Rules -> Rulesets):
@@ -144,7 +143,7 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_my_registrations_service.py` (fake DAOs: own rows only with tab counts, schedule split + hours, cancel for PENDING / APPROVED with lock inside the transaction + admin notifications + audit, refusals for no-slot rows / started activity / someone else's row, role check, mark-read uses the actor's id and 404s), `tests/integration/test_my_registrations_flow.py` (admin 403, tabs and counts, empty state, cancel frees the slot + notifies every admin + audits + register again re-uses the row, refusals, schedule split, inbox with per-row and mark-all read, badge count, admin inbox gets registration events), `tests/e2e/test_my_registrations.py` (Playwright: cancel from My Registrations, see the Cancelled tab, empty schedule, read a notification from the bell). 509 unit+integration and 8 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-6 updated
 
-## Phase 8: Reports and audit logs (branch `feat/reports`, ready for review)
+## Phase 8: Reports and audit logs (merged: PR #11)
 - [x] Reports on screen with filters; CSV export; printable view: `/admin/reports` index (`app/controllers/admin_reports.py`, `templates/admin/reports/index.html`) lists three reports, all built on the `BaseReport` template method (`generate()` = `fetch_data` -> `summarize` -> `format`): `SystemTotalsReport` (existing), `ActivityParticipationReport` (one row per activity with pending / approved / completed slots and fill rate, from `ActivityDAO.report_rows()`: LEFT JOIN + conditional SUM so empty activities still appear) and `VolunteerHoursReport` (one row per volunteer with registrations by status and hours of APPROVED / COMPLETED activities, grouped in `summarize()` from `RegistrationDAO.report_rows()`), both in `app/services/reports/admin_reports.py`; `ReportFilterSchema` (`app/schemas/report.py`, tolerant GET filters: activity date range, status; a backwards range drops its end date); `ReportService` (`app/services/report_service.py`, ADMIN-only catalogue / generate, 404 for unknown names) renders one `templates/reports/show.html` (filter form, summary cards, table, Download CSV + Printable view buttons that keep the filters), `GET /admin/reports/<name>.csv` (standard `csv` module, header + rows + blank line + summary, UTF-8 BOM, `Content-Disposition: attachment`) and `GET /admin/reports/<name>/print` (`templates/reports/print.html`: plain page without header or sidebar, generated-at line with the active filters, `print:hidden` toolbar with a Print button); `cell_text()` formats dates, times, PyMySQL timedeltas and floats the same way for HTML, CSV and print
 - [x] Volunteer's own report through polymorphism: `GET /registrations/report` (+ `.csv`, `/print`) calls `ReportService.for_person()` -> `current_user.generate_report()`, so a Volunteer gets `VolunteerActivityReport` and an Admin would get `SystemTotalsReport` without the service knowing the subclass; linked from My Schedule ("My activity report")
 - [x] Audit log viewer with filters: `/admin/audit-logs` (`app/controllers/admin_audit.py`, `templates/admin/audit_logs.html`), 25 per page newest first, filters action (drop-down of every distinct code, `AuditLogDAO.list_actions()`), username (partial match, wildcard in the value), date range (`AuditFilterSchema`, tolerant, `?page=99` clamps to the last page); `AuditService` (`app/services/audit_service.py`, ADMIN-only); `AuditLogDAO.search()` / `count_search()` share `_filters()` so the page and its total never disagree
@@ -152,6 +151,13 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_report_service.py` (tolerant schemas, both reports through `generate()` with fake DAO rows including timedelta times, catalogue / 404 / role checks, polymorphic `for_person`, `cell_text`, CSV layout, `AuditService` paging and clamping), `tests/unit/test_dao.py` (report SQL, audit search / count / distinct actions), `tests/integration/test_reports_flow.py` (403 for volunteers on every report and audit route, index, system totals, activity participation with status / date filters and empty state, volunteer hours, CSV headers + content, printable view without navigation, volunteer's own report + CSV + print and 403 for admins, audit viewer with 28 entries over 2 pages, action / username / date filters, clamping), `tests/e2e/test_reports.py` (Playwright: open Activity Participation, filter by status, download the CSV, find an entry in Audit Logs and filter by action). 532 unit+integration and 9 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-6 (viewer), FR-7 updated
 
-## Phase 9: Polish and deploy
-- [ ] Responsive + accessible UI, empty/error/loading states
-- [ ] Demo seed data, README screenshots, 15-minute demo checklist, deployment guide
+## Phase 9: Polish and deploy (branch `feat/polish`, ready for review)
+- [x] Responsive + accessible UI, empty/error/loading states: `base.html` gained a "Skip to main content" link (first Tab, `sr-only` until focused) and a focusable `<main id="main">` landmark, a `<meta name="description">`, and a double-submit guard (the only other JavaScript besides the sidebar toggle: once a form really submits, its button is disabled, `aria-busy="true"` and reads "Please wait..."; a cancelled `confirm()` leaves it alone); the error page names each code (403 / 404 / 413 / 429 / 503) with a one-line hint; every page already had one `h1`, labelled fields with inline errors, text badges, `aria-current` on the active link, horizontally scrolling tables and empty states (verified page by page). Tailwind now scans `app/controllers` and `app/navigation.py` (the old `blueprints` path never existed)
+- [x] Demo seed data: `python seed.py` also writes 10 registrations in every status (3 APPROVED, 3 PENDING, 2 COMPLETED, 1 REJECTED with remarks, 1 CANCELLED) through the DAOs with the notifications and audit entries the real flows would have written (`Seeder.ensure_registration()`, `ACTIVITY_CREATED` on each new activity); still idempotent (`tests/integration/test_seed.py` runs it twice)
+- [x] README screenshots: `scripts/screenshots.py` rebuilds a scratch database (`greenhands_demo`, never the dev one) from `schema.sql`, seeds it, starts the real app with CSRF on and captures 14 PNGs into `docs/screenshots/` (login, admin dashboard / activities / registrations / report / audit logs, volunteer dashboard / activities / detail / registrations / schedule / notifications, phone list + open menu); README shows them in a two-column table and documents the script
+- [x] 15-minute demo checklist: `docs/DEMO.md` (set-up steps, a minute-by-minute table that names the pattern or FR each step proves, the code questions to expect with their answers, and what to do if something goes wrong)
+- [x] Deployment guide: `docs/DEPLOYMENT.md` (defense setup on XAMPP, production changes: `FLASK_ENV=production`, dedicated DB user with a GRANT snippet, WSGI options with waitress recommended and Apache + mod_wsgi only described because the brief asks for a decision first, HTTPS note, pre-launch checklist, backups, operations notes)
+- [x] README: Screenshots, Documentation and Accessibility sections, Commands table updated
+- [x] Tests: `tests/e2e/test_accessibility.py` (phone viewport: menu button with `aria-expanded`, Escape closes, no horizontal scroll; skip link focuses `#main`; a held POST shows the disabled "Please wait" button), `tests/integration/test_seed.py` (counts per table and status, notifications and audit totals, idempotent second run, demo accounts log in). 533 unit+integration and 12 e2e tests pass
+- [x] REQUIREMENTS.md NFR rows Usability, Reliability, Portability updated
+
