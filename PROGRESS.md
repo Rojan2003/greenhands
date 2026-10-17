@@ -11,8 +11,9 @@ one failure case), audit logging where needed, and a responsive UI.
 | 1 Authentication | **Merged** + review hardening | `feat/auth` PR #2, `fix/auth-review` PR #3 |
 | 2 Volunteer profile | **Merged** | `feat/profile`, PR #4 |
 | 3 Admin: volunteers, locations, activities | **Merged** | `feat/admin-manage`, PR #6 |
-| 4 Browse activities | **Ready for review** (429 unit+integration, 5 e2e) | `feat/browse-activities` (built in the worktree `../greenhands-p4`) |
-| 5-9 | Not started | one branch per phase, off `main` |
+| 4 Browse activities | **Merged** | `feat/browse-activities`, PR #7 |
+| 5 Register for an activity | **Ready for review** (459 unit+integration, 6 e2e) | `feat/register` (built in the main folder) |
+| 6-9 | Not started | one branch per phase, off `main` |
 
 `main` is on GitHub (default branch) and only moves through pull requests. 218 unit +
 integration tests and 3 Playwright tests pass on `main`; CI (ruff, mypy, pytest, e2e) is
@@ -39,10 +40,12 @@ patterns to keep naming in code and in the defense: Singleton (`DatabaseManager`
 per table, all SQL), Template Method (`BaseReport`).
 
 ### Next steps, in order
-1. Phase 4 is merged with `main` (Phase 3) on `feat/browse-activities`: run all checks, open the PR, merge.
-2. Phase 5 (register for an activity) builds on Phase 4's details page: wire the Register button,
-   `SELECT ... FOR UPDATE` on the activity inside one transaction, reuse a CANCELLED row, notify admins.
-3. Then Phases 6, 7, 8, 9 as listed below, one branch and one PR each.
+1. Phase 5 (`feat/register`): review, PR, merge.
+2. Phase 6 (admin review): pending list under "Registrations" (sidebar link is still `#`), approve
+   re-checks capacity under the activity row lock, reject requires remarks, `reviewed_by` /
+   `reviewed_at`, volunteer notification (`REGISTRATION_APPROVED` / `_REJECTED`) and audit entries.
+   `RegistrationDAO.review()` and `list_by_status()` already exist.
+3. Then Phases 7, 8, 9 as listed below, one branch and one PR each.
 
 ### Open items
 - **Branch protection:** create the "Protect main" ruleset in GitHub (Settings -> Rules -> Rulesets):
@@ -105,7 +108,7 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_schemas_location_activity.py`, `test_location_service.py`, `test_activity_service.py`, `test_admin_user_service.py`, `test_pagination.py`, new DAO tests in `test_dao.py`; `tests/integration/test_admin_manage_flow.py` (403 for volunteers on every admin route, locations CRUD + duplicate name + delete refused, activities create / edit / filter / pagination / status change, delete-vs-cancel with notifications only for PENDING / APPROVED, volunteers search / pagination / deactivate blocks login / reset password then the temporary password logs in); `tests/e2e/test_admin_activities.py` (Playwright: admin creates a location and an activity through the forms, changes its status through the row form with `confirm()`). 371 unit+integration and 4 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 and Usability updated
 
-## Phase 4: Browse activities (branch `feat/browse-activities`, ready for review)
+## Phase 4: Browse activities (merged: PR #7)
 - [x] DAO: `ActivityDAO.search()` / `count_search()` gained `date_from` (shared `_search_filters()` so list and count never drift; LIKE wildcard stays in the value) and `list_upcoming_open()` (`app/dao/activity_dao.py`)
 - [x] Schema: `BrowseFilterSchema` (`app/schemas/browse.py`): keyword (max 100), location, exact date, page; `from_query()` is tolerant and drops bad URL values instead of showing an error page
 - [x] `BrowseService` (`app/services/browse_service.py`): `list_open()` returns a `Page[Activity]` (12 per page, OPEN and dated today or later, soonest first, an out-of-range page clamps to the last page), `locations_for_filter()`, `get_activity()` (NotFoundError -> 404 page), `upcoming()`; every method accepts VOLUNTEER and ADMIN via `require_role` (`app/services/pagination.py` holds the generic `Page[T]`)
@@ -115,10 +118,13 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_schemas_browse.py`, `tests/unit/test_browse_service.py` (fake DAOs), `tests/unit/test_dao.py` (date_from and upcoming SQL), `tests/integration/test_browse_flow.py` (only OPEN future activities listed, filters, 13 activities -> 2 pages with the filters kept in the links, slots from PENDING + APPROVED only, 404 page, admin can view, anonymous redirected, dashboard upcoming), `tests/e2e/test_browse.py` (Playwright: filter by keyword, open details, see the slots text)
 - [x] REQUIREMENTS.md rows FR-3, FR-4 and NFR Performance updated
 
-## Phase 5: Register for an activity
-- [ ] Checks: OPEN, not already registered, slots available
-- [ ] `SELECT ... FOR UPDATE` in one transaction; re-use cancelled row
-- [ ] Notify admins
+## Phase 5: Register for an activity (branch `feat/register`, ready for review)
+- [x] Checks: OPEN, not already registered, slots available: `RegistrationService.register()` (`app/services/registration_service.py`, VOLUNTEER-only via `require_role`) refuses a CLOSED / CANCELLED / COMPLETED or already-started activity ("This activity is not open for registration."), a PENDING / APPROVED row ("You are already registered for this activity."), a REJECTED / COMPLETED row ("You cannot register for this activity again.", those states are final) and a full activity ("This activity is full."); typed `ConflictError`s that the controller turns into flash messages
+- [x] `SELECT ... FOR UPDATE` in one transaction; re-use cancelled row: the whole check-and-write runs inside `db.transaction()`; `ActivityDAO.lock_for_update()` locks the activity row first so racing volunteers queue up; slots are counted under that lock with a locking read (`RegistrationDAO.count_slot_taking(for_update=True)`, `LOCK IN SHARE MODE`) so the count is the latest committed one, not a snapshot; a CANCELLED row goes back to PENDING through `RegistrationDAO.reopen()` (same id, review fields cleared); a race that slips past the duplicate check is caught by `UNIQUE(activity_id, user_id)` -> `ConflictError`
+- [x] Notify admins: one `REGISTRATION_SUBMITTED` notification per administrator (`UserDAO.list_admin_ids()` + `NotificationDAO.insert_many()`), written in the same transaction as the row and the `REGISTRATION_CREATED` audit entry (entity `registration`, details name the activity, never personal data)
+- [x] UI: `POST /activities/<id>/register` (`app/controllers/activities.py`, `role_required(VOLUNTEER)`, CSRF form) redirects back to the details page with a success or error flash; the details page's slot card (`templates/volunteer/activities/detail.html`) shows exactly one state: Register button, "Register again" after a cancellation, "You are registered" + Pending / Approved badge, "Your registration" + Rejected / Completed badge (with the admin's remarks when rejected), disabled button with "This activity is full." / "Registration is closed.", or "Administrators cannot register for activities." (`RegistrationService.can_register()` is the single rule behind the button)
+- [x] Tests: `tests/unit/test_registration_service.py` (fake DAOs: one transaction, lock inside it, locking count, audit + admin notifications, every refusal, cancelled row re-used, `can_register` table), `tests/integration/test_register_flow.py` (row + audit + one notification per admin, details page flips to Pending and slots drop by one, duplicate / full / closed / rejected refused with no new row, admin 403, 404 page, cancelled row re-used with the same id, second volunteer loses the last slot), `tests/e2e/test_register.py` (Playwright: click Register, see "You are registered" and 24 of 25 slots left); Phase 4's two placeholder-button assertions updated. 459 unit+integration and 6 e2e tests pass
+- [x] REQUIREMENTS.md rows FR-3, FR-6 updated
 
 ## Phase 6: Admin review
 - [ ] Pending list; approve re-checks capacity; reject requires remarks

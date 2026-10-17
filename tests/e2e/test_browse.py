@@ -74,8 +74,8 @@ def test_volunteer_filters_activities_and_opens_details(
     expect(page.get_by_role("heading", name="Riverbank Reforestation Drive")).to_be_visible()
     expect(page.get_by_text("25 of 25 slots left")).to_be_visible()
     expect(page.get_by_text("Riverside Drive, Green City")).to_be_visible()
-    expect(page.get_by_role("button", name="Register")).to_be_disabled()
-    expect(page.get_by_text("Registration opens in the next phase")).to_be_visible()
+    expect(page.get_by_role("button", name="Register", exact=True)).to_be_enabled()
+    expect(page.get_by_text("Your request will be reviewed by an administrator.")).to_be_visible()
 
     page.get_by_role("link", name="Back to activities").first.click()
     expect(page).to_have_url(f"{live_server}/activities")

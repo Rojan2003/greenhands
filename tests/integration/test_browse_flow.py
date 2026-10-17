@@ -313,8 +313,8 @@ def test_details_page_counts_only_pending_and_approved_registrations(
     assert "Riverside Park Drive, Green City" in page and "Meet at the main gate." in page
     assert days(4).strftime("%A, %B %d, %Y") in page and "7:00 AM - 11:00 AM" in page
     assert "4.0 hours" in page
-    assert "disabled" in page and ">Register</button>" in page
-    assert "Registration opens in the next phase" in page
+    assert ">Register</button>" in page and 'name="csrf_token"' in page  # Phase 5 form
+    assert "Your request will be reviewed by an administrator." in page
     assert "Back to activities" in page and 'href="/activities"' in page
     assert 'aria-current="page"' in page  # the sidebar keeps "Activities" highlighted
 

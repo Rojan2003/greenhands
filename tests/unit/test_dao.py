@@ -258,6 +258,17 @@ def test_registration_count_slot_taking(fake_db: FakeDatabaseManager) -> None:
     assert "'PENDING', 'APPROVED'" in fake_db.last_sql
 
 
+def test_registration_count_slot_taking_for_update_is_a_locking_read(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    fake_db.rows = [{"n": 4}]
+    dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
+    assert dao.count_slot_taking(3, for_update=True) == 4
+    assert fake_db.last_sql.endswith("LOCK IN SHARE MODE") and fake_db.last_params == (3,)
+    dao.count_slot_taking(3)
+    assert "LOCK IN SHARE MODE" not in fake_db.last_sql  # plain read by default
+
+
 def test_registration_reopen_resets_review_fields(fake_db: FakeDatabaseManager) -> None:
     assert RegistrationDAO(fake_db).reopen(7)  # type: ignore[arg-type]
     assert "reviewed_by = NULL" in fake_db.last_sql

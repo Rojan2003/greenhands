@@ -48,9 +48,39 @@
       {% else %}
       <p class="mt-3 text-2xl font-bold text-brand">{{ activity.available_slots }} of {{ activity.max_volunteers }} slots left</p>
       {% endif %}
+
+      {# ---- what the volunteer can do: one of the states below (admins get none) ---- #}
+      {% if current_user.role_name == "ADMIN" %}
+      <p id="register-hint" class="mt-5 text-center text-sm text-gray-400">Administrators cannot register for activities.</p>
+
+      {% elif registration and registration.status.value in ("PENDING", "APPROVED") %}
+      <div class="mt-5 rounded-lg bg-brand-light px-4 py-3 text-sm text-brand-dark" role="status">
+        <p class="flex items-center gap-2 font-semibold">You are registered {{ status_badge(registration.status) }}</p>
+        <p class="mt-1 text-gray-600">
+          {% if registration.status.value == "PENDING" %}An administrator will review your request.{% else %}See you there!{% endif %}
+        </p>
+      </div>
+
+      {% elif registration and registration.status.value in ("REJECTED", "COMPLETED") %}
+      <div class="mt-5 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600" role="status">
+        <p class="flex items-center gap-2 font-semibold text-gray-800">Your registration {{ status_badge(registration.status) }}</p>
+        {% if registration.status.value == "REJECTED" and registration.remarks %}<p class="mt-1">{{ registration.remarks }}</p>{% endif %}
+      </div>
+
+      {% elif can_register %}
+      <form method="post" action="{{ url_for('activities.register', activity_id=activity.id) }}" class="mt-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-primary w-full">{% if registration %}Register again{% else %}Register{% endif %}</button>
+      </form>
+      <p id="register-hint" class="mt-2 text-center text-xs text-gray-400">Your request will be reviewed by an administrator.</p>
+
+      {% else %}
       <button type="button" disabled aria-describedby="register-hint"
               class="btn-primary mt-5 w-full opacity-60 cursor-not-allowed">Register</button>
-      <p id="register-hint" class="mt-2 text-center text-xs text-gray-400">Registration opens in the next phase</p>
+      <p id="register-hint" class="mt-2 text-center text-xs text-gray-400">
+        {% if activity.is_full %}This activity is full.{% else %}Registration is closed.{% endif %}
+      </p>
+      {% endif %}
     </section>
 
     <section class="card">
