@@ -3,15 +3,15 @@
 A feature is **done** only when it has validation, error handling, tests (one success +
 one failure case), audit logging where needed, and a responsive UI.
 
-## Where we are (updated 2026-10-17, afternoon)
+## Where we are (updated 2026-10-17, evening)
 
 | Phase | Status | Branch / PR |
 |---|---|---|
 | 0 Project setup | **Merged** | `feat/project-setup`, PR #1 |
 | 1 Authentication | **Merged** + review hardening | `feat/auth` PR #2, `fix/auth-review` PR #3 |
 | 2 Volunteer profile | **Merged** | `feat/profile`, PR #4 |
-| 3 Admin: volunteers, locations, activities | **Ready for review** (371 unit+integration, 4 e2e) | `feat/admin-manage` (built in the main folder) |
-| 4 Browse activities | **In progress** (parallel) | `feat/browse-activities` (built in the worktree `../greenhands-p4`) |
+| 3 Admin: volunteers, locations, activities | **Merged** | `feat/admin-manage`, PR #6 |
+| 4 Browse activities | **Ready for review** (429 unit+integration, 5 e2e) | `feat/browse-activities` (built in the worktree `../greenhands-p4`) |
 | 5-9 | Not started | one branch per phase, off `main` |
 
 `main` is on GitHub (default branch) and only moves through pull requests. 218 unit +
@@ -39,14 +39,10 @@ patterns to keep naming in code and in the defense: Singleton (`DatabaseManager`
 per table, all SQL), Template Method (`BaseReport`).
 
 ### Next steps, in order
-1. Finish Phase 3: merge `main` into `feat/admin-manage`, run all checks, open the PR, merge.
-2. Finish Phase 4: merge `main` (brings Phase 3) into `feat/browse-activities`; expected overlaps are
-   `app/navigation.py`, `app/__init__.py` (blueprint registration), `app/services/pagination.py` and
-   `templates/partials/_pagination.html` (both phases add the same helper; keep one copy),
-   `templates/volunteer/dashboard.html`, PROGRESS.md and REQUIREMENTS.md. Then checks, PR, merge.
-3. Phase 5 (register for an activity) builds on Phase 4's details page: wire the Register button,
+1. Phase 4 is merged with `main` (Phase 3) on `feat/browse-activities`: run all checks, open the PR, merge.
+2. Phase 5 (register for an activity) builds on Phase 4's details page: wire the Register button,
    `SELECT ... FOR UPDATE` on the activity inside one transaction, reuse a CANCELLED row, notify admins.
-4. Then Phases 6, 7, 8, 9 as listed below, one branch and one PR each.
+3. Then Phases 6, 7, 8, 9 as listed below, one branch and one PR each.
 
 ### Open items
 - **Branch protection:** create the "Protect main" ruleset in GitHub (Settings -> Rules -> Rulesets):
@@ -99,7 +95,7 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 updated; README notes `scripts/upgrade_db.py` and the uploads folder
 - [x] Review fixes: new passwords are limited to 72 *bytes* (shared `check_password_strength()` in `app/schemas/auth.py`, used by sign-up and change password); the avatar file is written inside the database transaction; photos moved out of `app/static` behind a login-protected route; integration test asserts the real birth-date error, not the form hint
 
-## Phase 3: Admin activities and locations (branch `feat/admin-manage`, ready for review)
+## Phase 3: Admin activities and locations (merged: PR #6)
 - [x] Users list for admins with "Reset password" and activate/deactivate (replaces "Forgot password?"): `/admin/volunteers` (`app/controllers/admin_volunteers.py`, `templates/admin/volunteers.html`), 20 per page, search on name / username / email (`UserDAO.search_volunteers()` / `count_volunteers()`, LIKE wildcard in the value); `AdminUserService` (`app/services/admin_user_service.py`) lists volunteers only, refuses self-deactivation and admin targets, generates a 12-character temporary password with `secrets` (letter + digit guaranteed, no look-alike characters), stores only its hash, flashes it ONCE to the admin and notifies the volunteer
 - [x] Locations CRUD: `/admin/locations` list with activity counts (`LocationDAO.list_with_activity_counts()`, LEFT JOIN + COUNT), new / edit (shared `templates/admin/locations/form.html`) and delete (`app/controllers/admin_locations.py`); `LocationSchema` (`app/schemas/location.py`); `LocationService` refuses duplicate names (inline field error) and deleting a location that still has activities
 - [x] Activities CRUD; delete with registrations sets CANCELLED: `/admin/activities` list (10 per page, `?status=` filter, slots taken / max from `Activity.available_slots`), new / edit (shared `templates/admin/activities/form.html`, location drop-down), delete and status change (`app/controllers/admin_activities.py`); `ActivitySchema` (`app/schemas/activity.py`) parses the form text and refuses a past date only on create (validation context), end time must be after start; `ActivityService` keeps `max_volunteers` >= taken slots on edit, `delete_or_cancel()` deletes only when nobody ever registered, otherwise sets CANCELLED and notifies every PENDING / APPROVED registrant (`RegistrationDAO.list_user_ids_by_activity()`); `change_status()` to CANCELLED follows the same path
@@ -109,9 +105,15 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_schemas_location_activity.py`, `test_location_service.py`, `test_activity_service.py`, `test_admin_user_service.py`, `test_pagination.py`, new DAO tests in `test_dao.py`; `tests/integration/test_admin_manage_flow.py` (403 for volunteers on every admin route, locations CRUD + duplicate name + delete refused, activities create / edit / filter / pagination / status change, delete-vs-cancel with notifications only for PENDING / APPROVED, volunteers search / pagination / deactivate blocks login / reset password then the temporary password logs in); `tests/e2e/test_admin_activities.py` (Playwright: admin creates a location and an activity through the forms, changes its status through the row form with `confirm()`). 371 unit+integration and 4 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 and Usability updated
 
-## Phase 4: Browse activities
-- [ ] OPEN activities list with search, filters (date, location, keyword) and pagination
-- [ ] Details page with computed available slots
+## Phase 4: Browse activities (branch `feat/browse-activities`, ready for review)
+- [x] DAO: `ActivityDAO.search()` / `count_search()` gained `date_from` (shared `_search_filters()` so list and count never drift; LIKE wildcard stays in the value) and `list_upcoming_open()` (`app/dao/activity_dao.py`)
+- [x] Schema: `BrowseFilterSchema` (`app/schemas/browse.py`): keyword (max 100), location, exact date, page; `from_query()` is tolerant and drops bad URL values instead of showing an error page
+- [x] `BrowseService` (`app/services/browse_service.py`): `list_open()` returns a `Page[Activity]` (12 per page, OPEN and dated today or later, soonest first, an out-of-range page clamps to the last page), `locations_for_filter()`, `get_activity()` (NotFoundError -> 404 page), `upcoming()`; every method accepts VOLUNTEER and ADMIN via `require_role` (`app/services/pagination.py` holds the generic `Page[T]`)
+- [x] OPEN activities list with search, filters (date, location, keyword) and pagination: `app/controllers/activities.py` (`GET /activities`), `templates/volunteer/activities/list.html` (GET filter form, cards in 1/2/3 columns, slots left or "Full", status badge, empty state with clear-filters link), `partials/_pagination.html` (`paginate()` macro: "Showing X-Y of Z" + Previous/Next links that keep the filters), `select_field()` macro in `partials/_forms.html`
+- [x] Details page with computed available slots: `GET /activities/<id>`, `templates/volunteer/activities/detail.html` (description, requirements, location address and details, slots computed from PENDING + APPROVED registrations, disabled "Register" button with "Registration opens in the next phase", "Back to activities")
+- [x] Volunteer dashboard "Upcoming activities" (3 soonest OPEN activities with links, or an empty state); sidebar "Activities" link and dashboard card "Browse Activities" open the list (`app/navigation.py`, `templates/volunteer/dashboard.html`)
+- [x] Tests: `tests/unit/test_schemas_browse.py`, `tests/unit/test_browse_service.py` (fake DAOs), `tests/unit/test_dao.py` (date_from and upcoming SQL), `tests/integration/test_browse_flow.py` (only OPEN future activities listed, filters, 13 activities -> 2 pages with the filters kept in the links, slots from PENDING + APPROVED only, 404 page, admin can view, anonymous redirected, dashboard upcoming), `tests/e2e/test_browse.py` (Playwright: filter by keyword, open details, see the slots text)
+- [x] REQUIREMENTS.md rows FR-3, FR-4 and NFR Performance updated
 
 ## Phase 5: Register for an activity
 - [ ] Checks: OPEN, not already registered, slots available

@@ -1,16 +1,12 @@
-{# Pagination bar for any services.pagination.Page: "Showing 21-40 of 95" + Previous / Next.
+{# Pagination bar for any services.pagination.Page (rendered only when there are rows): "Showing 21-40 of 95" + Previous / Next.
    `endpoint` is the list route; extra keyword arguments (search text, filters) are kept
    in every link so the user does not lose them when changing page. #}
 {% macro paginate(page_obj, endpoint, noun="rows") -%}
+{% if page_obj.total %}
 <nav class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-t border-gray-100 text-sm"
      aria-label="Pagination">
   <p class="text-gray-500">
-    {% if page_obj.total %}
-    Showing <span class="font-semibold text-gray-700">{{ page_obj.start }}-{{ page_obj.end }}</span>
-    of <span class="font-semibold text-gray-700">{{ page_obj.total }}</span> {{ noun }}
-    {% else %}
-    No {{ noun }} to show
-    {% endif %}
+    Showing <span class="font-semibold text-gray-700">{{ page_obj.start }}-{{ page_obj.end }}</span> of {{ page_obj.total }} {{ noun }}
   </p>
   {% if page_obj.pages > 1 %}
   <div class="flex items-center gap-2">
@@ -28,4 +24,5 @@
   </div>
   {% endif %}
 </nav>
+{% endif %}
 {%- endmacro %}

@@ -68,6 +68,7 @@ def create_app(
 
     # --- controllers (blueprints) ---
     from app.auth.loader import register_user_loader
+    from app.controllers.activities import activities_bp
     from app.controllers.admin import admin_bp
     from app.controllers.admin_activities import admin_activities_bp
     from app.controllers.admin_locations import admin_locations_bp
@@ -84,6 +85,7 @@ def create_app(
         auth_bp,
         volunteer_bp,
         profile_bp,
+        activities_bp,
         admin_bp,
         admin_activities_bp,
         admin_locations_bp,

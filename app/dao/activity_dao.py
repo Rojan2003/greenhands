@@ -69,27 +69,24 @@ class ActivityDAO(BaseDAO):
         keyword: str | None = None,
         location_id: int | None = None,
         activity_date: date | None = None,
+        date_from: date | None = None,
         status: ActivityStatus | None = ActivityStatus.OPEN,
         limit: int = 12,
         offset: int = 0,
     ) -> list[Activity]:
-        """Filtered list for the browse page. Filters are optional; only set ones apply."""
-        sql = _SELECT + "WHERE 1 = 1"
+        """Filtered list for the browse page. Filters are optional; only set ones apply.
+
+        `date_from` hides activities before that day (the browse page passes today,
+        so past activities never show even when they are still OPEN). Rows are
+        ordered soonest first; `a.id` is a tie-break so pagination is stable.
+        """
         params: list[Any] = []
-        if status is not None:
-            sql += " AND a.status = %s"
-            params.append(status.value)
-        if location_id is not None:
-            sql += " AND a.location_id = %s"
-            params.append(location_id)
-        if activity_date is not None:
-            sql += " AND a.activity_date = %s"
-            params.append(activity_date)
-        if keyword:
-            sql += " AND (a.title LIKE %s OR a.description LIKE %s)"
-            like = "%" + keyword + "%"  # the wildcard is part of the VALUE, not the SQL text
-            params.extend([like, like])
-        sql += " ORDER BY a.activity_date, a.start_time LIMIT %s OFFSET %s"
+        sql = (
+            _SELECT
+            + "WHERE 1 = 1"
+            + self._search_filters(params, keyword, location_id, activity_date, date_from, status)
+        )
+        sql += " ORDER BY a.activity_date, a.start_time, a.id LIMIT %s OFFSET %s"
         params.extend([limit, offset])
         return [self.to_model(r) for r in self.db.fetch_all(sql, tuple(params))]
 
@@ -99,10 +96,33 @@ class ActivityDAO(BaseDAO):
         keyword: str | None = None,
         location_id: int | None = None,
         activity_date: date | None = None,
+        date_from: date | None = None,
         status: ActivityStatus | None = ActivityStatus.OPEN,
     ) -> int:
-        sql = "SELECT COUNT(*) AS n FROM activities a WHERE 1 = 1"
+        """How many rows `search` would return with the same filters (for page counts)."""
         params: list[Any] = []
+        sql = "SELECT COUNT(*) AS n FROM activities a WHERE 1 = 1" + self._search_filters(
+            params, keyword, location_id, activity_date, date_from, status
+        )
+        row = self.db.fetch_one(sql, tuple(params))
+        return int(row["n"]) if row else 0
+
+    @staticmethod
+    def _search_filters(
+        params: list[Any],
+        keyword: str | None,
+        location_id: int | None,
+        activity_date: date | None,
+        date_from: date | None,
+        status: ActivityStatus | None,
+    ) -> str:
+        """Build the shared WHERE clauses for search/count_search.
+
+        Returns the SQL text to append and fills `params` in the same order, so
+        the two queries can never drift apart. Every value stays a %s parameter;
+        the LIKE wildcard is part of the VALUE, not the SQL text.
+        """
+        sql = ""
         if status is not None:
             sql += " AND a.status = %s"
             params.append(status.value)
@@ -112,12 +132,23 @@ class ActivityDAO(BaseDAO):
         if activity_date is not None:
             sql += " AND a.activity_date = %s"
             params.append(activity_date)
+        if date_from is not None:
+            sql += " AND a.activity_date >= %s"
+            params.append(date_from)
         if keyword:
             sql += " AND (a.title LIKE %s OR a.description LIKE %s)"
             like = "%" + keyword + "%"
             params.extend([like, like])
-        row = self.db.fetch_one(sql, tuple(params))
-        return int(row["n"]) if row else 0
+        return sql
+
+    def list_upcoming_open(self, limit: int = 3, today: date | None = None) -> list[Activity]:
+        """The next few OPEN activities on or after `today`, soonest first (dashboard widget)."""
+        rows = self.db.fetch_all(
+            _SELECT + "WHERE a.status = %s AND a.activity_date >= %s "
+            "ORDER BY a.activity_date, a.start_time, a.id LIMIT %s",
+            (ActivityStatus.OPEN.value, today or date.today(), limit),
+        )
+        return [self.to_model(r) for r in rows]
 
     def list_all(self, *, limit: int = 50, offset: int = 0) -> list[Activity]:
         rows = self.db.fetch_all(

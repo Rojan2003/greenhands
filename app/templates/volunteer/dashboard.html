@@ -13,7 +13,7 @@
 
 <div class="mt-8 grid gap-6 md:grid-cols-3">
   {% set cards = [
-    ("Activities", "Browse open tree-planting activities and find one near you.", "Browse Activities", "#", "tree"),
+    ("Activities", "Browse open tree-planting activities and find one near you.", "Browse Activities", url_for("activities.list_activities"), "tree"),
     ("My Registrations", "Track the status of every activity you signed up for.", "View Registrations", "#", "list"),
     ("My Profile", "Keep your contact details and emergency contact up to date.", "Edit Profile", url_for("profile.view"), "user"),
   ] %}
@@ -28,6 +28,38 @@
   </article>
   {% endfor %}
 </div>
+
+{# ---------- Upcoming activities: the three soonest OPEN activities ---------- #}
+<section class="card mt-8">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <h2 class="text-lg font-bold text-brand-dark">Upcoming activities</h2>
+    <a href="{{ url_for('activities.list_activities') }}" class="text-sm font-medium text-brand hover:underline">See all</a>
+  </div>
+  {% if upcoming %}
+  <ul class="divide-y divide-gray-100">
+    {% for activity in upcoming %}
+    <li class="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="min-w-0">
+        <a href="{{ url_for('activities.detail', activity_id=activity.id) }}" class="font-semibold text-brand-dark hover:underline">{{ activity.title }}</a>
+        <p class="mt-0.5 text-sm text-gray-500">
+          {{ activity.activity_date.strftime('%a, %b %d, %Y') }} &middot;
+          {{ activity.start_time.strftime('%I:%M %p').lstrip('0') }} - {{ activity.end_time.strftime('%I:%M %p').lstrip('0') }} &middot;
+          {{ activity.location_name }}
+        </p>
+      </div>
+      <span class="text-sm font-semibold {% if activity.is_full %}text-red-600{% else %}text-brand{% endif %}">
+        {% if activity.is_full %}Full{% else %}{{ activity.available_slots }} of {{ activity.max_volunteers }} slots left{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="px-5 py-10 text-center">
+    <p class="text-gray-500">No upcoming activities yet.</p>
+    <p class="mt-1 text-sm text-gray-400">New activities will appear here as soon as an administrator opens them.</p>
+  </div>
+  {% endif %}
+</section>
 
 <p class="mt-10 text-center text-sm text-gray-500 italic">Together for a Cleaner, Greener, and Healthier Tomorrow.</p>
 {% endblock %}
