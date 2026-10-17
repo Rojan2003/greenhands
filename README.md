@@ -29,6 +29,8 @@ database, so they can be regenerated after any UI change.
 
 ## Documentation
 
+- [docs/USER_GUIDE.md](docs/USER_GUIDE.md): how to use the application, page by page, for
+  volunteers and administrators, with the messages you may see and what to do about them.
 - [docs/DEMO.md](docs/DEMO.md): the 15-minute demo checklist for the defense, step by step,
   with the design pattern or requirement each step proves.
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): defense setup on XAMPP, what to change for a

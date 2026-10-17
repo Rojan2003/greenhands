@@ -4,6 +4,8 @@ A scripted walkthrough for the defense. Times are a guide; the whole run fits in
 15 minutes with questions at the end. Every step names the design pattern or
 requirement it demonstrates, so the graders can tick them off as you go.
 
+For what each page does from the user's point of view, see [USER_GUIDE.md](USER_GUIDE.md).
+
 ## Before you start (5 minutes, not part of the demo)
 
 1. Start MySQL from the terminal: `.\scripts\mysql.ps1`
