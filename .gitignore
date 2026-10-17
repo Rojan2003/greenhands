@@ -27,8 +27,6 @@ app/static/css/app.css
 
 # --- User uploads (profile photos) live outside app/static so they are never public ---
 instance/
-app/static/uploads/*
-!app/static/uploads/.gitkeep
 
 # --- Playwright ---
 test-results/
