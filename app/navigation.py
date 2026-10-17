@@ -103,8 +103,8 @@ def _nav_for_current_user() -> Nav:
                 "admin_volunteers.list_volunteers",
                 section="admin_volunteers",
             ),
-            _item("Reports", "chart", None),
-            _item("Audit Logs", "log", None),
+            _item("Reports", "chart", "admin_reports.index", section="admin_reports"),
+            _item("Audit Logs", "log", "admin_audit.list_logs", section="admin_audit"),
         ]
     else:
         items = [

@@ -71,8 +71,10 @@ def create_app(
     from app.controllers.activities import activities_bp
     from app.controllers.admin import admin_bp
     from app.controllers.admin_activities import admin_activities_bp
+    from app.controllers.admin_audit import admin_audit_bp
     from app.controllers.admin_locations import admin_locations_bp
     from app.controllers.admin_registrations import admin_registrations_bp
+    from app.controllers.admin_reports import admin_reports_bp
     from app.controllers.admin_volunteers import admin_volunteers_bp
     from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
@@ -96,6 +98,8 @@ def create_app(
         admin_locations_bp,
         admin_registrations_bp,
         admin_volunteers_bp,
+        admin_reports_bp,
+        admin_audit_bp,
     )
     for blueprint in blueprints:
         app.register_blueprint(blueprint)

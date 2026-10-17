@@ -363,6 +363,45 @@ def test_audit_search_adds_only_given_filters(fake_db: FakeDatabaseManager) -> N
     assert fake_db.last_params == ("CREATE", date(2030, 1, 1), 50, 0)
 
 
+def test_audit_search_and_count_share_filters_including_username(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = AuditLogDAO(fake_db)  # type: ignore[arg-type]
+    dao.search(action="LOGIN", username="ad", date_to=date(2030, 1, 31), limit=25, offset=25)
+    search_sql, search_params = fake_db.calls[-1]
+    assert "u.username LIKE %s" in search_sql and "DATE_ADD(%s, INTERVAL 1 DAY)" in search_sql
+    assert search_params == ("LOGIN", "%ad%", date(2030, 1, 31), 25, 25)  # wildcard in the value
+
+    fake_db.rows = [{"n": 4}]
+    assert dao.count_search(action="LOGIN", username="ad", date_to=date(2030, 1, 31)) == 4
+    count_sql, count_params = fake_db.calls[-1]
+    assert count_sql.startswith("SELECT COUNT(*) AS n FROM audit_logs l JOIN users u")
+    assert "u.username LIKE %s" in count_sql and count_params == (
+        "LOGIN",
+        "%ad%",
+        date(2030, 1, 31),
+    )
+
+    fake_db.rows = [{"action": "LOGIN"}, {"action": "SIGN_UP"}]
+    assert dao.list_actions() == ["LOGIN", "SIGN_UP"]
+    assert "DISTINCT action" in fake_db.calls[-1][0]
+
+
+def test_activity_report_rows_adds_only_given_filters(fake_db: FakeDatabaseManager) -> None:
+    ActivityDAO(fake_db).report_rows(date_from=date(2030, 6, 1), status=ActivityStatus.OPEN)  # type: ignore[arg-type]
+    sql, params = fake_db.calls[-1]
+    assert "LEFT JOIN registrations r" in sql and "SUM(r.status = 'PENDING')" in sql
+    assert "a.activity_date >= %s" in sql and "a.activity_date <= %s" not in sql
+    assert "GROUP BY a.id" in sql and params == (date(2030, 6, 1), "OPEN")
+
+
+def test_registration_report_rows_joins_users_and_activities(fake_db: FakeDatabaseManager) -> None:
+    RegistrationDAO(fake_db).report_rows(date_to=date(2030, 6, 30))  # type: ignore[arg-type]
+    sql, params = fake_db.calls[-1]
+    assert "JOIN users u" in sql and "JOIN activities a" in sql
+    assert "a.activity_date <= %s" in sql and params == (date(2030, 6, 30),)
+
+
 # ---- Phase 3 additions: admin lists ----
 def test_user_dao_search_volunteers_puts_the_wildcard_in_the_value(
     fake_db: FakeDatabaseManager,

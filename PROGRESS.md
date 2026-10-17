@@ -14,8 +14,9 @@ one failure case), audit logging where needed, and a responsive UI.
 | 4 Browse activities | **Merged** | `feat/browse-activities`, PR #7 |
 | 5 Register for an activity | **Merged** | `feat/register`, PR #8 |
 | 6 Admin review of registrations | **Merged** | `feat/admin-review`, PR #9 |
-| 7 My registrations, schedule, notifications | **Ready for review** (509 unit+integration, 8 e2e) | `feat/my-registrations` (built in the main folder) |
-| 8-9 | Not started | one branch per phase, off `main` |
+| 7 My registrations, schedule, notifications | **Merged** | `feat/my-registrations`, PR #10 |
+| 8 Reports and audit logs | **Ready for review** (532 unit+integration, 9 e2e) | `feat/reports` (built in the main folder) |
+| 9 Polish and deploy | Not started | `feat/polish`, off `main` |
 
 `main` is on GitHub (default branch) and only moves through pull requests. 218 unit +
 integration tests and 3 Playwright tests pass on `main`; CI (ruff, mypy, pytest, e2e) is
@@ -42,12 +43,11 @@ patterns to keep naming in code and in the defense: Singleton (`DatabaseManager`
 per table, all SQL), Template Method (`BaseReport`).
 
 ### Next steps, in order
-1. Phase 7 (`feat/my-registrations`): review, PR, merge.
-2. Phase 8 (reports and audit logs): admin "Reports" page built on the `BaseReport` template method
-   (`VolunteerActivityReport`, `SystemTotalsReport` in `app/services/reports/`) with filters, CSV export
-   and a printable view; "Audit Logs" viewer with filters on `AuditLogDAO.search()`. Sidebar links
-   "Reports" and "Audit Logs" are still `#`.
-3. Phase 9 (polish and deploy) as listed below.
+1. Phase 8 (`feat/reports`): review, PR, merge.
+2. Phase 9 (polish and deploy): responsive + accessible pass over every page, empty / error /
+   loading states, demo seed data (`seed.py`), README screenshots, 15-minute demo checklist,
+   deployment guide (ask before Apache / mod_wsgi). Also the two design images and the "Protect
+   main" ruleset from Open items.
 
 ### Open items
 - **Branch protection:** create the "Protect main" ruleset in GitHub (Settings -> Rules -> Rulesets):
@@ -135,7 +135,7 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_review_service.py` (fake DAOs: one transaction with the lock inside it, locking APPROVED count, review fields, volunteer notification, audit, capacity refusal, cancelled / completed refusal, CLOSED allowed, non-PENDING refused, remarks required, list filter), `tests/unit/test_dao.py` (search / count_search / count_for_activity SQL), `tests/integration/test_admin_review_flow.py` (403 for volunteers, pending list, approve with reviewed_by / reviewed_at / notification / audit, reject without then with remarks, double review refused, approve refused when approved slots are full or the activity is cancelled, 404, filter + pagination with 22 rows, dashboard links, volunteer sees the rejection and remarks), `tests/e2e/test_admin_review.py` (Playwright: approve one row, reject another with remarks, see the remarks under the Rejected badge). 489 unit+integration and 7 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 updated
 
-## Phase 7: My registrations, schedule, notifications (branch `feat/my-registrations`, ready for review)
+## Phase 7: My registrations, schedule, notifications (merged: PR #10)
 - [x] Registration status list with tabs: `/registrations` (`app/controllers/registrations.py`, `templates/volunteer/registrations/list.html`), tabs All / Pending / Approved / Rejected / Cancelled / Completed with counts (`MyRegistrationsService.list_mine()` in `app/services/my_registrations_service.py`, VOLUNTEER-only, reads only the actor's own rows via `RegistrationDAO.list_by_user()`); each row links to the activity and shows date, time, location, review date and the admin's remarks; `RegistrationDAO` now joins `locations` and exposes `activity_start_time` / `activity_end_time` / `activity_status` / `location_name` on `Registration`
 - [x] Cancel rules (PENDING/APPROVED and not started); notify admin + audit log: `POST /registrations/<id>/cancel` -> `MyRegistrationsService.cancel()` inside one transaction under the activity row lock (same lock order as registering and reviewing): someone else's row is a 404 (never revealed), REJECTED / CANCELLED / COMPLETED rows are refused, a started activity is refused, otherwise `set_status(CANCELLED)`, one `REGISTRATION_CANCELLED` notification per administrator and the `REGISTRATION_CANCELLED` audit entry ("APPROVED -> CANCELLED"); the slot is free again and registering again re-uses the row (Phase 5); `Registration.can_cancel()` / `activity_has_started()` / `activity_hours` are the model-side rules used by the template
 - [x] Schedule + history: `/registrations/schedule` (`schedule.html`): Upcoming = PENDING / APPROVED rows dated today or later (soonest first), History = COMPLETED rows or past PENDING / APPROVED rows (most recent first; rejected and cancelled rows never appear), cards for upcoming count, completed count and hours volunteered (APPROVED + COMPLETED rows in the history)
@@ -144,9 +144,13 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_my_registrations_service.py` (fake DAOs: own rows only with tab counts, schedule split + hours, cancel for PENDING / APPROVED with lock inside the transaction + admin notifications + audit, refusals for no-slot rows / started activity / someone else's row, role check, mark-read uses the actor's id and 404s), `tests/integration/test_my_registrations_flow.py` (admin 403, tabs and counts, empty state, cancel frees the slot + notifies every admin + audits + register again re-uses the row, refusals, schedule split, inbox with per-row and mark-all read, badge count, admin inbox gets registration events), `tests/e2e/test_my_registrations.py` (Playwright: cancel from My Registrations, see the Cancelled tab, empty schedule, read a notification from the bell). 509 unit+integration and 8 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-6 updated
 
-## Phase 8: Reports and audit logs
-- [ ] Reports on screen with filters; CSV export; printable view
-- [ ] Audit log viewer with filters
+## Phase 8: Reports and audit logs (branch `feat/reports`, ready for review)
+- [x] Reports on screen with filters; CSV export; printable view: `/admin/reports` index (`app/controllers/admin_reports.py`, `templates/admin/reports/index.html`) lists three reports, all built on the `BaseReport` template method (`generate()` = `fetch_data` -> `summarize` -> `format`): `SystemTotalsReport` (existing), `ActivityParticipationReport` (one row per activity with pending / approved / completed slots and fill rate, from `ActivityDAO.report_rows()`: LEFT JOIN + conditional SUM so empty activities still appear) and `VolunteerHoursReport` (one row per volunteer with registrations by status and hours of APPROVED / COMPLETED activities, grouped in `summarize()` from `RegistrationDAO.report_rows()`), both in `app/services/reports/admin_reports.py`; `ReportFilterSchema` (`app/schemas/report.py`, tolerant GET filters: activity date range, status; a backwards range drops its end date); `ReportService` (`app/services/report_service.py`, ADMIN-only catalogue / generate, 404 for unknown names) renders one `templates/reports/show.html` (filter form, summary cards, table, Download CSV + Printable view buttons that keep the filters), `GET /admin/reports/<name>.csv` (standard `csv` module, header + rows + blank line + summary, UTF-8 BOM, `Content-Disposition: attachment`) and `GET /admin/reports/<name>/print` (`templates/reports/print.html`: plain page without header or sidebar, generated-at line with the active filters, `print:hidden` toolbar with a Print button); `cell_text()` formats dates, times, PyMySQL timedeltas and floats the same way for HTML, CSV and print
+- [x] Volunteer's own report through polymorphism: `GET /registrations/report` (+ `.csv`, `/print`) calls `ReportService.for_person()` -> `current_user.generate_report()`, so a Volunteer gets `VolunteerActivityReport` and an Admin would get `SystemTotalsReport` without the service knowing the subclass; linked from My Schedule ("My activity report")
+- [x] Audit log viewer with filters: `/admin/audit-logs` (`app/controllers/admin_audit.py`, `templates/admin/audit_logs.html`), 25 per page newest first, filters action (drop-down of every distinct code, `AuditLogDAO.list_actions()`), username (partial match, wildcard in the value), date range (`AuditFilterSchema`, tolerant, `?page=99` clamps to the last page); `AuditService` (`app/services/audit_service.py`, ADMIN-only); `AuditLogDAO.search()` / `count_search()` share `_filters()` so the page and its total never disagree
+- [x] Navigation: sidebar "Reports" and "Audit Logs" open the pages (highlighted on their blueprints); every sidebar link now has a page
+- [x] Tests: `tests/unit/test_report_service.py` (tolerant schemas, both reports through `generate()` with fake DAO rows including timedelta times, catalogue / 404 / role checks, polymorphic `for_person`, `cell_text`, CSV layout, `AuditService` paging and clamping), `tests/unit/test_dao.py` (report SQL, audit search / count / distinct actions), `tests/integration/test_reports_flow.py` (403 for volunteers on every report and audit route, index, system totals, activity participation with status / date filters and empty state, volunteer hours, CSV headers + content, printable view without navigation, volunteer's own report + CSV + print and 403 for admins, audit viewer with 28 entries over 2 pages, action / username / date filters, clamping), `tests/e2e/test_reports.py` (Playwright: open Activity Participation, filter by status, download the CSV, find an entry in Audit Logs and filter by action). 532 unit+integration and 9 e2e tests pass
+- [x] REQUIREMENTS.md rows FR-6 (viewer), FR-7 updated
 
 ## Phase 9: Polish and deploy
 - [ ] Responsive + accessible UI, empty/error/loading states
