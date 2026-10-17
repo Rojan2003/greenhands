@@ -25,7 +25,8 @@ env/
 app/static/css/app.css
 .tools/
 
-# --- User uploads (profile photos); keep the folder, not the files ---
+# --- User uploads (profile photos) live outside app/static so they are never public ---
+instance/
 app/static/uploads/*
 !app/static/uploads/.gitkeep
 

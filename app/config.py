@@ -45,7 +45,8 @@ class Config:
     # the extra 64 KB leaves room for the form fields around a 2 MB image.
     MAX_PHOTO_BYTES = 2 * 1024 * 1024
     MAX_CONTENT_LENGTH = MAX_PHOTO_BYTES + 64 * 1024
-    UPLOAD_FOLDER = str(APP_ROOT / "static" / "uploads")
+    # Outside app/static on purpose: static files are public, photos need a login.
+    UPLOAD_FOLDER = str(APP_ROOT.parent / "instance" / "uploads")
 
 
 class TestConfig(Config):

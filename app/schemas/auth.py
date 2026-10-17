@@ -14,6 +14,21 @@ PASSWORD_MIN = 8
 PASSWORD_MAX = 72  # bcrypt limit
 
 
+def check_password_strength(value: str) -> str:
+    """Shared rules for a new password (sign-up and change password).
+
+    bcrypt reads at most 72 *bytes*, and accented letters take 2+ bytes each, so
+    the byte length is checked here; the Field max_length only counts characters.
+    """
+    if len(value.encode("utf-8")) > PASSWORD_MAX:
+        msg = f"Password is too long (max {PASSWORD_MAX} bytes)."
+        raise ValueError(msg)
+    if not re.search(r"[A-Za-z]", value) or not re.search(r"[0-9]", value):
+        msg = "Password needs at least one letter and one number."
+        raise ValueError(msg)
+    return value
+
+
 class SignUpSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -45,10 +60,7 @@ class SignUpSchema(BaseModel):
     @field_validator("password")
     @classmethod
     def password_rules(cls, value: str) -> str:
-        if not re.search(r"[A-Za-z]", value) or not re.search(r"[0-9]", value):
-            msg = "Password needs at least one letter and one number."
-            raise ValueError(msg)
-        return value
+        return check_password_strength(value)
 
     @field_validator("phone", "address", mode="before")
     @classmethod

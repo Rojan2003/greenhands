@@ -89,7 +89,7 @@ def upload_client(upload_app: Flask) -> FlaskClient:
 
 # ------------------------------------------------------------- access (FR-2)
 def test_profile_pages_require_login(client: FlaskClient) -> None:
-    for path in ("/profile/", "/profile/edit", "/profile/password"):
+    for path in ("/profile/", "/profile/edit", "/profile/password", "/profile/photo/avatars/x.png"):
         response = client.get(path)
         assert response.status_code == 302 and response.headers["Location"].startswith("/login")
 
@@ -178,7 +178,8 @@ def test_edit_profile_with_invalid_input_shows_errors_and_saves_nothing(
     page = response.get_data(as_text=True)
     assert response.status_code == 200
     assert "Enter a valid phone number." in page
-    assert "at least 13 years old" in page
+    assert "Volunteers must be at least 13 years old." in page  # the error, not the form hint
+    assert 'id="birth_date-error"' in page
     assert 'value="456 Forest Ave"' in page  # typed values are kept
     saved = UserDAO(clean_db).find_by_id(user.id or 0)
     assert isinstance(saved, Volunteer) and saved.first_name == "Vicky"
@@ -285,7 +286,7 @@ def test_photo_upload_saves_the_file_and_sets_photo_path(
     saved_file = tmp_path / "avatars" / f"user_{user.id}.png"
     assert saved_file.read_bytes() == tiny_png()
     saved = UserDAO(clean_db).find_by_id(user.id or 0)
-    assert saved is not None and saved.photo_path == f"uploads/avatars/user_{user.id}.png"
+    assert saved is not None and saved.photo_path == f"avatars/user_{user.id}.png"
     assert (
         count(
             clean_db,
@@ -297,7 +298,35 @@ def test_photo_upload_saves_the_file_and_sets_photo_path(
 
     page = upload_client.get("/profile/").get_data(as_text=True)
     assert "Your photo has been updated." in page
-    assert f'src="/static/uploads/avatars/user_{user.id}.png"' in page  # header + profile card
+    photo_url = f"/profile/photo/avatars/user_{user.id}.png"
+    assert f'src="{photo_url}"' in page  # header + profile card
+    assert "/static/" not in photo_url  # never served as a public static file
+
+    served = upload_client.get(photo_url)
+    assert served.status_code == 200 and served.mimetype == "image/png"
+    assert served.get_data() == tiny_png()
+
+
+def test_photos_are_not_public(
+    upload_client: FlaskClient, clean_db: DatabaseManager, tmp_path: Path
+) -> None:
+    """FR-1: anyone could guess user_<id>.png, so the photo route needs a login."""
+    user = logged_in_volunteer(upload_client, clean_db)
+    upload_photo(upload_client, "me.png", tiny_png())
+    photo_url = f"/profile/photo/avatars/user_{user.id}.png"
+    upload_client.post("/logout")
+
+    response = upload_client.get(photo_url)
+    assert response.status_code == 302 and response.headers["Location"].startswith("/login")
+    assert upload_client.get("/static/uploads/avatars/user_1.png").status_code == 404
+
+
+def test_missing_or_escaping_photo_path_is_404(
+    upload_client: FlaskClient, clean_db: DatabaseManager
+) -> None:
+    logged_in_volunteer(upload_client, clean_db)
+    assert upload_client.get("/profile/photo/avatars/user_999.png").status_code == 404
+    assert upload_client.get("/profile/photo/..%2F..%2F.env").status_code == 404
 
 
 @pytest.mark.parametrize(

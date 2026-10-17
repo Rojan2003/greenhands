@@ -7,13 +7,12 @@ so a value that was fine at sign-up is still fine here.
 
 from __future__ import annotations
 
-import re
 from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
-from app.schemas.auth import PASSWORD_MAX, PASSWORD_MIN, PHONE_RE
+from app.schemas.auth import PASSWORD_MAX, PASSWORD_MIN, PHONE_RE, check_password_strength
 
 MIN_VOLUNTEER_AGE = 13
 
@@ -89,9 +88,7 @@ class ChangePasswordSchema(BaseModel):
     @field_validator("new_password")
     @classmethod
     def new_password_rules(cls, value: str, info: ValidationInfo) -> str:
-        if not re.search(r"[A-Za-z]", value) or not re.search(r"[0-9]", value):
-            msg = "Password needs at least one letter and one number."
-            raise ValueError(msg)
+        check_password_strength(value)  # same rules as sign-up, incl. the 72-byte limit
         # `current_password` is missing from info.data when it failed its own check.
         if info.data.get("current_password") == value:
             msg = "New password must be different from the current one."

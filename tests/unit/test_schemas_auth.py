@@ -50,6 +50,8 @@ def test_signup_valid_form_is_normalised() -> None:
         ("password", "short1", "at least 8"),
         ("password", "lettersonly", "letter and one number"),
         ("password", "12345678", "letter and one number"),
+        # 42 characters but 82 bytes: bcrypt would refuse it, so the schema must too.
+        ("password", "a1" + "é" * 40, "max 72 bytes"),
         ("phone", "abc", "valid phone"),
         ("first_name", "", "at least 1"),
     ],

@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 from app.auth.passwords import hash_password, verify_password
-from app.errors import ForbiddenError, NotFoundError, ValidationError
+from app.errors import DatabaseError, ForbiddenError, NotFoundError, ValidationError
 from app.models import Admin, AuditLog, Person, RoleName, Volunteer, VolunteerProfile
 from app.services.profile_service import ProfileService, check_photo, detect_photo_type
 
@@ -46,6 +46,7 @@ class FakeUserDAO:
         self.contact_updates: list[tuple[int, str, str, str | None]] = []
         self.photo_updates: list[tuple[int, str | None]] = []
         self.password_updates: list[tuple[int, str]] = []
+        self.fail_with: Exception | None = None  # raised by update_photo when set
 
     def find_by_id(self, user_id: int) -> Person | None:
         return next((u for u in self.users if u.id == user_id), None)
@@ -57,6 +58,8 @@ class FakeUserDAO:
         return True
 
     def update_photo(self, user_id: int, photo_path: str | None) -> bool:
+        if self.fail_with is not None:
+            raise self.fail_with
         self.photo_updates.append((user_id, photo_path))
         return True
 
@@ -369,7 +372,7 @@ def test_update_photo_saves_file_updates_path_and_audits(tmp_path: Path) -> None
 
     path = service.update_photo(user, fake_upload("holiday.PNG", PNG_BYTES))
 
-    assert path == "uploads/avatars/user_5.png"
+    assert path == "avatars/user_5.png"
     assert (tmp_path / "avatars" / "user_5.png").read_bytes() == PNG_BYTES
     assert users.photo_updates == [(5, path)] and db.transactions == 1
     assert user.photo_path == path
@@ -379,7 +382,7 @@ def test_update_photo_saves_file_updates_path_and_audits(tmp_path: Path) -> None
 
 
 def test_update_photo_removes_the_old_avatar_with_a_different_extension(tmp_path: Path) -> None:
-    user = make_volunteer(photo_path="uploads/avatars/user_5.jpg")
+    user = make_volunteer(photo_path="avatars/user_5.jpg")
     old_file = tmp_path / "avatars" / "user_5.jpg"
     old_file.parent.mkdir(parents=True)
     old_file.write_bytes(JPEG_BYTES)
@@ -389,6 +392,22 @@ def test_update_photo_removes_the_old_avatar_with_a_different_extension(tmp_path
 
     assert not old_file.exists()  # the only deletion in the app: the user's own old avatar
     assert sorted(p.name for p in old_file.parent.iterdir()) == ["user_5.webp"]
+
+
+def test_update_photo_keeps_the_old_file_when_the_database_fails(tmp_path: Path) -> None:
+    """The file is written inside the transaction, after the SQL: no row, no file change."""
+    user = make_volunteer(photo_path="avatars/user_5.png")
+    old_file = tmp_path / "avatars" / "user_5.png"
+    old_file.parent.mkdir(parents=True)
+    old_file.write_bytes(PNG_BYTES)
+    service, _, users, _, audit = make_service(user, upload_folder=tmp_path)
+    users.fail_with = DatabaseError("Database is not available.")
+
+    with pytest.raises(DatabaseError):
+        service.update_photo(user, fake_upload("new.png", PNG_BYTES + b"NEW"))
+
+    assert old_file.read_bytes() == PNG_BYTES  # the live avatar was not replaced
+    assert audit.entries == [] and user.photo_path == "avatars/user_5.png"
 
 
 def test_update_photo_rejects_bad_file_without_writing_anything(tmp_path: Path) -> None:

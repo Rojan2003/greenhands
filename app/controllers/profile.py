@@ -1,12 +1,23 @@
 """Profile controller: a volunteer views and edits their own profile (Controller in MVC).
 
 Thin by design: read the request, call ProfileService, pick a template. Every
-route is VOLUNTEER-only; admins have no profile and get a 403 page (FR-2).
+route is VOLUNTEER-only; admins have no profile and get a 403 page (FR-2). The
+one exception is `photo_file`, which serves a stored avatar to any logged-in
+user, because photos live outside the public static folder.
 """
 
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
@@ -97,3 +108,11 @@ def photo() -> ResponseReturnValue:
 
     flash("Your photo has been updated.", "success")
     return redirect(url_for("profile.view"))
+
+
+@profile_bp.get("/photo/<path:filename>")
+@role_required(RoleName.VOLUNTEER, RoleName.ADMIN)  # any logged-in user, never anonymous
+def photo_file(filename: str) -> ResponseReturnValue:
+    # `filename` is the stored users.photo_path, e.g. "avatars/user_5.png".
+    # send_from_directory refuses paths that escape UPLOAD_FOLDER and 404s on a miss.
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)

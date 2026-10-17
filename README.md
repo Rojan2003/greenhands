@@ -99,7 +99,7 @@ app/
   controllers/         CONTROLLER: Flask blueprints (thin: read request -> service -> template)
   templates/           VIEW: Jinja2 HTML
   static/src/          VIEW: Tailwind input (theme colours live here)
-  static/uploads/      profile photos uploaded by volunteers (git-ignored; only .gitkeep is tracked)
+  static/uploads/      unused since photos moved to instance/uploads (only .gitkeep is tracked)
   models/              MODEL: BaseEntity, Person (abstract), Volunteer, Admin, Activity, ...
   services/            business rules; services/reports = BaseReport template method
   dao/                 DAO: one class per table, ALL SQL lives here (%s placeholders)
@@ -108,6 +108,7 @@ app/
   auth/                password hashing, Flask-Login loader, role decorators
 database/schema.sql    CREATE TABLE statements (import in phpMyAdmin)
 scripts/               init_db.py, upgrade_db.py, tailwind.ps1 / .sh, check.ps1
+instance/uploads/      profile photos uploaded by volunteers (git-ignored, created on first upload)
 seed.py                demo data (through the DAOs)
 tests/unit             no database (FakeDatabaseManager)
 tests/integration      real MySQL/MariaDB test database
@@ -131,9 +132,11 @@ Controllers and templates never run SQL.
 - If MySQL is not running, pages show "Database is not available. Is MySQL running in XAMPP?"
   instead of crashing (FR-8).
 - Profile photos are files, not database rows: they are saved as
-  `app/static/uploads/avatars/user_<id>.<ext>` and only the relative path is stored in
-  `users.photo_path`. The folder is git-ignored, so a fresh clone starts with no photos
-  and users see their initials until they upload one.
+  `instance/uploads/avatars/user_<id>.<ext>` (`UPLOAD_FOLDER` in `app/config.py`) and only
+  `avatars/user_<id>.<ext>` is stored in `users.photo_path`. The folder is deliberately
+  outside `app/static`, which Flask serves to anyone: photos are served by the
+  login-protected route `/profile/photo/<path>` instead. The folder is git-ignored, so a
+  fresh clone starts with no photos and users see their initials until they upload one.
 
 ## Tests
 

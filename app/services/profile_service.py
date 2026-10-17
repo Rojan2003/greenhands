@@ -5,7 +5,8 @@ Rules from the brief:
 - Every change is validated first (FR-4) and written in one transaction with an
   audit entry (FR-6). Audit details name the changed fields, never their values.
 - A photo is accepted only when its extension AND its first bytes say PNG, JPEG
-  or WEBP, and it is at most 2 MB.
+  or WEBP, and it is at most 2 MB. Photos live under UPLOAD_FOLDER (outside
+  app/static) and are served by a login-protected route, never as public files.
 """
 
 from __future__ import annotations
@@ -185,7 +186,7 @@ class ProfileService:
 
     # -------------------------------------------------------------- photo
     def update_photo(self, actor: Person, upload: FileStorage) -> str:
-        """Validate and save the avatar; return the new path relative to app/static."""
+        """Validate and save the avatar; return its path relative to UPLOAD_FOLDER."""
         require_role(actor, RoleName.VOLUNTEER)
         user = self.get_profile(actor)
 
@@ -195,8 +196,7 @@ class ProfileService:
         folder = self.upload_folder / AVATAR_SUBFOLDER
         folder.mkdir(parents=True, exist_ok=True)
         filename = f"user_{user.id}.{extension}"
-        (folder / filename).write_bytes(data)  # same name as before: simply overwritten
-        photo_path = f"uploads/{AVATAR_SUBFOLDER}/{filename}"
+        photo_path = f"{AVATAR_SUBFOLDER}/{filename}"
 
         with self.db.transaction():
             self.users.update_photo(user.id or 0, photo_path)
@@ -209,6 +209,9 @@ class ProfileService:
                     details=f"Profile photo replaced ({extension}).",
                 )
             )
+            # Written last, inside the transaction: a database error means the old
+            # file is never touched, and a disk error rolls the database back.
+            (folder / filename).write_bytes(data)  # same name as before: overwritten
 
         # The one deletion in the app: a user's previous avatar with another extension.
         old_name = Path(user.photo_path).name if user.photo_path else None

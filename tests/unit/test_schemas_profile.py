@@ -131,6 +131,8 @@ def test_change_password_valid_form() -> None:
         ("new_password", "lettersonly", "letter and one number"),
         ("new_password", "12345678", "letter and one number"),
         ("new_password", "x1" * 40, "at most 72"),
+        # 42 characters but 82 bytes: bcrypt would refuse it, so the schema must too.
+        ("new_password", "a1" + "é" * 40, "max 72 bytes"),
     ],
 )
 def test_change_password_rejects_bad_field(field: str, value: str, fragment: str) -> None:
