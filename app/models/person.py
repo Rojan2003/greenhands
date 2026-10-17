@@ -29,6 +29,7 @@ class Person(BaseEntity, ABC):
     first_name: str
     last_name: str
     phone: str | None = None
+    photo_path: str | None = None  # relative to app/static, e.g. "uploads/avatars/user_5.png"
     status: UserStatus = UserStatus.ACTIVE
     failed_login_attempts: int = 0
     locked_until: datetime | None = None

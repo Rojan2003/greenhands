@@ -39,6 +39,7 @@ CREATE TABLE users (
   first_name            VARCHAR(50)  NOT NULL,
   last_name             VARCHAR(50)  NOT NULL,
   phone                 VARCHAR(20)  NULL,
+  photo_path            VARCHAR(255) NULL,
   status                ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
   failed_login_attempts INT NOT NULL DEFAULT 0,
   locked_until          DATETIME NULL,

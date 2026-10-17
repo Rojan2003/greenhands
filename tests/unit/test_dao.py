@@ -51,6 +51,7 @@ def user_row(**overrides: Any) -> dict[str, Any]:
         "first_name": "Maria",
         "last_name": "Santos",
         "phone": None,
+        "photo_path": None,
         "status": "ACTIVE",
         "failed_login_attempts": 0,
         "locked_until": None,
@@ -115,6 +116,15 @@ def test_user_dao_insert_sets_id_and_binds_values(fake_db: FakeDatabaseManager) 
     assert new_id == 1 and volunteer.id == 1
     assert "DROP TABLE" not in fake_db.last_sql  # the injection text stayed a parameter
     assert fake_db.last_params[1] == "new'; DROP TABLE users; --"
+
+
+def test_user_dao_update_photo_and_password_bind_values(fake_db: FakeDatabaseManager) -> None:
+    dao = UserDAO(fake_db)  # type: ignore[arg-type]
+    assert dao.update_photo(5, "uploads/avatars/user_5.png") is True
+    assert fake_db.last_params == ("uploads/avatars/user_5.png", 5)
+    assert dao.update_password(5, "$2b$12$new") is True
+    assert "password_hash = %s" in fake_db.last_sql
+    assert fake_db.last_params == ("$2b$12$new", 5)
 
 
 def test_user_dao_propagates_database_error(fake_db: FakeDatabaseManager) -> None:

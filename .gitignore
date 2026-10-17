@@ -25,6 +25,10 @@ env/
 app/static/css/app.css
 .tools/
 
+# --- User uploads (profile photos); keep the folder, not the files ---
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
 # --- Playwright ---
 test-results/
 playwright-report/
