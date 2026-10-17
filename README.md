@@ -9,6 +9,35 @@ Design patterns: Singleton (`DatabaseManager`), MVC, Inheritance (`Person` -> `V
 Template Method (`BaseReport`), DAO. See [REQUIREMENTS.md](REQUIREMENTS.md) for the
 requirement-to-code map and [PROGRESS.md](PROGRESS.md) for status.
 
+## Screenshots
+
+| Volunteer | Admin |
+|---|---|
+| ![Volunteer dashboard](docs/screenshots/volunteer-dashboard.png) | ![Admin dashboard](docs/screenshots/admin-dashboard.png) |
+| ![Browse activities](docs/screenshots/volunteer-activities.png) | ![Review registrations](docs/screenshots/admin-registrations.png) |
+| ![Activity details with Register](docs/screenshots/volunteer-activity-detail.png) | ![Manage activities](docs/screenshots/admin-activities.png) |
+| ![My registrations](docs/screenshots/volunteer-registrations.png) | ![Activity participation report](docs/screenshots/admin-report-activities.png) |
+| ![My schedule](docs/screenshots/volunteer-schedule.png) | ![Audit logs](docs/screenshots/admin-audit-logs.png) |
+
+<p>
+  <img src="docs/screenshots/login.png" alt="Login page" width="49%">
+  <img src="docs/screenshots/phone-menu.png" alt="Phone layout with the menu open" width="18%">
+</p>
+
+The images are produced by `python scripts\screenshots.py` against a throw-away demo
+database, so they can be regenerated after any UI change.
+
+## Documentation
+
+- [docs/USER_GUIDE.md](docs/USER_GUIDE.md): how to use the application, page by page, for
+  volunteers and administrators, with the messages you may see and what to do about them.
+- [docs/DEMO.md](docs/DEMO.md): the 15-minute demo checklist for the defense, step by step,
+  with the design pattern or requirement each step proves.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): defense setup on XAMPP, what to change for a
+  small production install, pre-launch checklist, backups.
+- [REQUIREMENTS.md](REQUIREMENTS.md): every FR / NFR mapped to code and tests.
+- [PROGRESS.md](PROGRESS.md): phase-by-phase status and how to resume work.
+
 ## Requirements
 
 - Windows 11 with [XAMPP](https://www.apachefriends.org/) (MariaDB 10.4 or newer, phpMyAdmin)
@@ -77,7 +106,7 @@ and keeps your data. Running it twice is harmless; it prints "already up to date
 | Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (runs XAMPP's own mysqld; the XAMPP Control Panel works as well) |
 | Create database + tables | `python scripts\init_db.py` (or import `database/schema.sql` in phpMyAdmin) |
 | Upgrade an existing database after pulling | `python scripts\upgrade_db.py` (adds missing columns, keeps data) |
-| Seed demo data | `python seed.py` (add `--big` for 1,000 activities) |
+| Seed demo data | `python seed.py` (admin, 4 volunteers, 3 locations, 6 activities, 10 registrations in every status with notifications and audit trail; add `--big` for 1,000 more activities) |
 | Dev server | `flask --app app run --debug` |
 | Unit + integration tests | `pytest` |
 | End-to-end tests (Phase 1+) | `playwright install chromium` once, then `pytest tests/e2e` |
@@ -86,6 +115,7 @@ and keeps your data. Running it twice is harmless; it prints "already up to date
 | Type check | `mypy .` |
 | Everything CI runs | `.\scripts\check.ps1` |
 | Build Tailwind CSS | `.\scripts\tailwind.ps1` (add `-Watch` while editing templates) |
+| Regenerate README screenshots | `python scripts\screenshots.py` (rebuilds the scratch database `greenhands_demo`, seeds it, captures `docs/screenshots/*.png`) |
 
 ## Project layout (MVC)
 
@@ -146,6 +176,19 @@ Controllers and templates never run SQL.
 - `tests/e2e` drives a real Chromium browser (Playwright) against a Flask server started
   on a free port with CSRF enabled. They are not part of the plain `pytest` run; use
   `pytest tests/e2e` after `playwright install chromium`. They also skip when MySQL is down.
+
+## Accessibility and responsive layout
+
+- Every page has one `h1`, labelled form fields with inline error text (`aria-invalid`,
+  `aria-describedby`), status badges with text (never colour alone), and `aria-current`
+  on the active sidebar link.
+- The first Tab reaches a "Skip to main content" link; the sidebar becomes a slide-in
+  menu under 768 px with an `aria-expanded` toggle that also closes on Escape.
+- Tables sit in horizontally scrolling cards, forms stack to one column on phones, and
+  a submitted form disables its button so a request cannot be sent twice.
+- Printable reports use a plain page without navigation (`print:hidden` toolbar).
+- `tests/e2e/test_accessibility.py` checks the phone layout, the skip link and the
+  loading state in a real browser.
 
 ## Line endings
 

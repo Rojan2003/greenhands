@@ -4,12 +4,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GreenHands: register for tree-planting activities, track your schedule and let administrators review sign-ups.">
   <title>{% block title %}GreenHands{% endblock %}</title>
   <link rel="icon" href="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="min-h-full bg-page text-gray-800 font-sans">
 {% block body %}
+{# Keyboard users press Tab once and jump past the header and sidebar. #}
+<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-brand focus:shadow-lg">Skip to main content</a>
 {# ---------- Top header bar (built once here, every page extends this file) ---------- #}
 <header class="bg-brand text-white">
   <div class="flex items-center justify-between h-16 px-4 sm:px-6">
@@ -82,7 +85,7 @@
   <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-black/40 md:hidden"></div>
 
   {# ---------- Content area ---------- #}
-  <main class="flex-1 min-w-0 px-4 py-6 sm:px-8">
+  <main id="main" tabindex="-1" class="flex-1 min-w-0 px-4 py-6 sm:px-8 focus:outline-none">
     {% include "partials/_flash.html" %}
     {% block page_header %}
     <div class="mb-6">
@@ -94,8 +97,23 @@
   </main>
 </div>
 
+{% endblock %}
+{# Scripts sit outside the body block so pages that replace it (login, sign-up) get them too. #}
 <script>
-  // The only JavaScript in the app: open/close the sidebar on small screens.
+  // Loading state: once a form is really submitting, disable its button so a double
+  // click cannot send the request twice (the server guards this too, with locks).
+  document.addEventListener("submit", function (event) {
+    if (event.defaultPrevented) return;  // a confirm() dialog was cancelled
+    var button = event.submitter || event.target.querySelector('button[type="submit"]');
+    if (!button) return;
+    setTimeout(function () {  // after this tick, so the button's own value is still posted
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      if (button.childElementCount === 0) button.textContent = "Please wait\u2026";
+    }, 0);
+  });
+
+  // Open/close the sidebar on small screens.
   (function () {
     var toggle = document.getElementById("sidebar-toggle");
     var sidebar = document.getElementById("sidebar");
@@ -113,6 +131,5 @@
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
   })();
 </script>
-{% endblock %}
 </body>
 </html>
