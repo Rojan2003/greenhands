@@ -54,6 +54,7 @@ class FakeUserDAO:
         self.inserted: list[Person] = []
         self.failures: list[tuple[int, int, datetime | None]] = []
         self.resets: list[int] = []
+        self.fresh_state: tuple[int, datetime | None] | None = None  # what the DB row says now
 
     def username_exists(self, username: str) -> bool:
         return any(u.username == username for u in self.users)
@@ -76,6 +77,12 @@ class FakeUserDAO:
 
     def reset_failed_logins(self, user_id: int) -> None:
         self.resets.append(user_id)
+
+    def lock_login_state(self, user_id: int) -> tuple[int, datetime | None] | None:
+        if self.fresh_state is not None:
+            return self.fresh_state
+        user = next((u for u in self.users if u.id == user_id), None)
+        return (user.failed_login_attempts, user.locked_until) if user else None
 
 
 class FakeProfileDAO:
@@ -293,3 +300,31 @@ def test_inactive_account_cannot_log_in() -> None:
 
     assert "inactive" in exc_info.value.message.lower()
     assert users.failures == []  # a correct password is not a "failed attempt"
+
+
+def test_failure_count_comes_from_the_locked_row_not_the_stale_object() -> None:
+    """Regression: parallel guesses used to each write back the same old count."""
+    user = make_volunteer(failed_login_attempts=0)  # loaded before the slow bcrypt check...
+    service, db, users, _, audit = make_service(user)
+    users.fresh_state = (MAX_FAILED_ATTEMPTS - 1, None)  # ...while other requests pushed it to 4
+
+    with pytest.raises(ForbiddenError):
+        service.login({"username": "maria", "password": "wrong-pass"}, now=NOW)
+
+    assert db.transactions == 1  # the read and the write happen under one row lock
+    assert users.failures == [(5, MAX_FAILED_ATTEMPTS, NOW + timedelta(minutes=LOCKOUT_MINUTES))]
+    assert [e.action for e in audit.entries] == ["ACCOUNT_LOCKED"]
+
+
+def test_lock_set_by_a_parallel_request_is_kept_not_extended() -> None:
+    user = make_volunteer(failed_login_attempts=3)
+    service, _, users, _, audit = make_service(user)
+    other_lock = NOW + timedelta(minutes=10)
+    users.fresh_state = (MAX_FAILED_ATTEMPTS, other_lock)
+
+    with pytest.raises(ForbiddenError) as exc_info:
+        service.login({"username": "maria", "password": "wrong-pass"}, now=NOW)
+
+    assert users.failures == [] and audit.entries == []  # nothing rewritten
+    assert user.locked_until == other_lock
+    assert "10 minute" in exc_info.value.message

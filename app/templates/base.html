@@ -66,6 +66,7 @@
         {{ item.label }}
       </a>
       {% endfor %}
+      {% if current_user.is_authenticated %}
       <form method="post" action="{{ url_for('auth.logout') }}" class="pt-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/90 hover:bg-white/10">
@@ -75,6 +76,7 @@
           Logout
         </button>
       </form>
+      {% endif %}
     </nav>
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-black/40 md:hidden"></div>

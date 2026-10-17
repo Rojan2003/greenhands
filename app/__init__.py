@@ -13,13 +13,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import Flask, Response, render_template, request
-from flask_login import current_user
+from flask import Flask, Response, flash, g, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
+from flask_login import current_user, logout_user
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from app.config import Config
 from app.database import DatabaseManager
-from app.errors import AppError
+from app.errors import AppError, DatabaseError
 from app.extensions import csrf, limiter, login_manager
 from app.logging_config import configure_logging
 
@@ -84,13 +85,18 @@ def create_app(
     public_endpoints = {"auth.login", "auth.signup", "main.health", "static"}
 
     @app.before_request
-    def require_login() -> Response | None:
+    def require_login() -> ResponseReturnValue | None:
         endpoint = request.endpoint
         if endpoint is None or endpoint in public_endpoints:
             return None
         if not current_user.is_authenticated:
             unauthorized: Response = login_manager.unauthorized()
             return unauthorized
+        if not current_user.is_active:
+            # Deactivated while logged in: the next request ends the session.
+            logout_user()
+            flash("This account is inactive. Please contact an administrator.", "warning")
+            return redirect(url_for("auth.login"))
         return None
 
     register_error_handlers(app)
@@ -101,29 +107,39 @@ def create_app(
 def register_error_handlers(app: Flask) -> None:
     """Turn typed service errors and HTTP errors into friendly pages (FR-8)."""
 
+    def render_error(code: int, message: str | None) -> tuple[str, int]:
+        # The error page extends base.html, which looks at current_user. If MySQL
+        # died inside the user loader, Flask-Login cached nothing and every
+        # current_user access would hit the database again and fail again, so the
+        # error page itself would crash. Load the user once here; if that fails,
+        # show the page as an anonymous visitor.
+        try:
+            _ = current_user.is_authenticated
+        except DatabaseError:
+            g._login_user = app.login_manager.anonymous_user()  # type: ignore[attr-defined]
+        return render_template("errors/error.html", code=code, message=message), code
+
     @app.errorhandler(AppError)
     def handle_app_error(err: AppError) -> tuple[str, int]:
         if err.status_code >= 500:
             log.error("application error: %s", err.message, extra={"action": "app_error"})
-        page = render_template("errors/error.html", code=err.status_code, message=err.message)
-        return page, err.status_code
+        return render_error(err.status_code, err.message)
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_too_large(_err: RequestEntityTooLarge) -> tuple[str, int]:
         # Flask stops requests above MAX_CONTENT_LENGTH before the view runs; the
         # default text talks about "the server", which does not help the user.
         max_mb = app.config["MAX_PHOTO_BYTES"] // (1024 * 1024)
-        message = f"The file is too large (max {max_mb} MB)."
-        return render_template("errors/error.html", code=413, message=message), 413
+        return render_error(413, f"The file is too large (max {max_mb} MB).")
 
     @app.errorhandler(HTTPException)
     def handle_http_error(err: HTTPException) -> tuple[str, int]:
         code = err.code or 500
-        return render_template("errors/error.html", code=code, message=err.description), code
+        return render_error(code, err.description)
 
     @app.errorhandler(Exception)
     def handle_unexpected(err: Exception) -> tuple[str, int]:
         log.exception("unhandled error")
         if app.config.get("TESTING") or app.debug:
             raise err
-        return render_template("errors/error.html", code=500, message="Something went wrong."), 500
+        return render_error(500, "Something went wrong.")

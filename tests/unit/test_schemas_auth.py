@@ -111,3 +111,11 @@ def test_login_schema_strips_whitespace() -> None:
 def test_login_schema_requires_both_fields(form: dict[str, str]) -> None:
     with pytest.raises(ValidationError):
         validate(LoginSchema, form)
+
+
+def test_signup_password_limit_counts_bytes_not_characters() -> None:
+    """bcrypt stops at 72 bytes; 'é' is 2 bytes, so 72 such characters must be refused."""
+    too_long = "a1" + "é" * 70  # 72 characters, 142 bytes
+    with pytest.raises(ValidationError) as exc_info:
+        validate(SignUpSchema, signup_form(password=too_long, confirm_password=too_long))
+    assert "too long" in exc_info.value.errors["password"]

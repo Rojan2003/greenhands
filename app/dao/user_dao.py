@@ -85,6 +85,20 @@ class UserDAO(BaseDAO):
         row = self.db.fetch_one("SELECT 1 AS found FROM users WHERE email = %s", (email,))
         return row is not None
 
+    def lock_login_state(self, user_id: int) -> tuple[int, datetime | None] | None:
+        """Read the failed-login counter under a row lock (call inside a transaction).
+
+        Parallel wrong guesses then wait for each other instead of all reading the
+        same old count, so the 5-attempt limit cannot be skipped by racing.
+        """
+        row = self.db.fetch_one(
+            "SELECT failed_login_attempts, locked_until FROM users WHERE id = %s FOR UPDATE",
+            (user_id,),
+        )
+        if row is None:
+            return None
+        return int(row["failed_login_attempts"]), row["locked_until"]
+
     def count_by_role(self, role: RoleName) -> int:
         row = self.db.fetch_one(
             "SELECT COUNT(*) AS n FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = %s",

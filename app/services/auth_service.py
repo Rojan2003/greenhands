@@ -125,24 +125,37 @@ class AuthService:
 
     # ------------------------------------------------------------ helpers
     def _record_failure(self, user: Person, now: datetime) -> None:
-        # A lockout that already expired starts a fresh count.
-        expired = user.locked_until is not None and not user.is_locked(now)
-        previous = 0 if expired else user.failed_login_attempts
-        attempts = previous + 1
-        locked_until = None
-        if attempts >= MAX_FAILED_ATTEMPTS:
-            locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
-            self.audit.insert(
-                AuditLog(
-                    user_id=user.id or 0,
-                    action="ACCOUNT_LOCKED",
-                    entity="user",
-                    record_reference=user.id,
-                    details=f"Locked for {LOCKOUT_MINUTES} minutes after {attempts} failed logins.",
+        """Add one failed attempt, reading the current count under a row lock.
+
+        The `user` object was loaded before the slow bcrypt check, so a parallel
+        guess may have changed the row since. The lock makes attempts queue up.
+        """
+        with self.db.transaction():
+            state = self.users.lock_login_state(user.id or 0)
+            previous, current_lock = state or (user.failed_login_attempts, user.locked_until)
+            if current_lock is not None and current_lock > now:
+                # Another request locked the account a moment ago: keep that lock.
+                user.failed_login_attempts, user.locked_until = previous, current_lock
+                return
+            # A lockout that already expired starts a fresh count.
+            attempts = (0 if current_lock is not None else previous) + 1
+            locked_until = None
+            if attempts >= MAX_FAILED_ATTEMPTS:
+                locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+                details = f"Locked for {LOCKOUT_MINUTES} minutes after {attempts} failed logins."
+                self.audit.insert(
+                    AuditLog(
+                        user_id=user.id or 0,
+                        action="ACCOUNT_LOCKED",
+                        entity="user",
+                        record_reference=user.id,
+                        details=details,
+                    )
                 )
-            )
-            log.warning("account locked", extra={"user_id": user.id, "action": "ACCOUNT_LOCKED"})
-        self.users.record_failed_login(user.id or 0, attempts, locked_until)
+                log.warning(
+                    "account locked", extra={"user_id": user.id, "action": "ACCOUNT_LOCKED"}
+                )
+            self.users.record_failed_login(user.id or 0, attempts, locked_until)
         user.failed_login_attempts = attempts
         user.locked_until = locked_until
 

@@ -99,7 +99,6 @@ app/
   controllers/         CONTROLLER: Flask blueprints (thin: read request -> service -> template)
   templates/           VIEW: Jinja2 HTML
   static/src/          VIEW: Tailwind input (theme colours live here)
-  static/uploads/      unused since photos moved to instance/uploads (only .gitkeep is tracked)
   models/              MODEL: BaseEntity, Person (abstract), Volunteer, Admin, Activity, ...
   services/            business rules; services/reports = BaseReport template method
   dao/                 DAO: one class per table, ALL SQL lives here (%s placeholders)
@@ -155,4 +154,5 @@ default `core.autocrlf=true`; Git converts on checkout and commit.
 
 ## Image credits
 
-Placeholder images will be added in Phase 1 and 4 (free images, credited here).
+The current images are hand-drawn SVG placeholders in `app/static/images` (no attribution
+needed). Photos added in later phases will be credited here.
