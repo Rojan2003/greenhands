@@ -191,6 +191,51 @@ def test_activity_search_binds_keyword_with_like(fake_db: FakeDatabaseManager) -
     assert fake_db.last_params == ("OPEN", 2, "%plant%", "%plant%", 12, 0)
 
 
+def test_activity_search_date_from_binds_value(fake_db: FakeDatabaseManager) -> None:
+    today = date(2030, 6, 15)
+    ActivityDAO(fake_db).search(date_from=today, limit=12, offset=12)  # type: ignore[arg-type]
+    assert "a.activity_date >= %s" in fake_db.last_sql
+    assert "a.activity_date = %s" not in fake_db.last_sql  # exact-day filter not added
+    assert "2030" not in fake_db.last_sql  # the date is a parameter, not SQL text
+    assert fake_db.last_params == ("OPEN", today, 12, 12)
+    assert "ORDER BY a.activity_date, a.start_time, a.id LIMIT %s OFFSET %s" in fake_db.last_sql
+
+
+def test_activity_count_search_matches_search_filters(fake_db: FakeDatabaseManager) -> None:
+    fake_db.rows = [{"n": 13}]
+    today = date(2030, 6, 15)
+    n = ActivityDAO(fake_db).count_search(  # type: ignore[arg-type]
+        keyword="plant", location_id=2, activity_date=today, date_from=today
+    )
+    assert n == 13
+    assert fake_db.last_sql.startswith("SELECT COUNT(*) AS n FROM activities a WHERE 1 = 1")
+    assert "a.activity_date >= %s" in fake_db.last_sql
+    assert fake_db.last_params == ("OPEN", 2, today, today, "%plant%", "%plant%")
+
+
+def test_activity_count_search_without_filters_has_only_status(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    ActivityDAO(fake_db).count_search()  # type: ignore[arg-type]
+    assert fake_db.last_params == ("OPEN",)
+    assert "LIKE" not in fake_db.last_sql
+
+
+def test_activity_list_upcoming_open(fake_db: FakeDatabaseManager) -> None:
+    fake_db.rows = [activity_row()]
+    today = date(2030, 6, 15)
+    items = ActivityDAO(fake_db).list_upcoming_open(limit=3, today=today)  # type: ignore[arg-type]
+    assert items[0].available_slots == 6
+    assert "WHERE a.status = %s AND a.activity_date >= %s" in fake_db.last_sql
+    assert fake_db.last_sql.endswith("ORDER BY a.activity_date, a.start_time, a.id LIMIT %s")
+    assert fake_db.last_params == ("OPEN", today, 3)
+
+
+def test_activity_list_upcoming_open_defaults_to_today(fake_db: FakeDatabaseManager) -> None:
+    ActivityDAO(fake_db).list_upcoming_open()  # type: ignore[arg-type]
+    assert fake_db.last_params == ("OPEN", date.today(), 3)
+
+
 def test_activity_lock_for_update_uses_for_update(fake_db: FakeDatabaseManager) -> None:
     fake_db.rows = [activity_row()]
     ActivityDAO(fake_db).lock_for_update(3)  # type: ignore[arg-type]
