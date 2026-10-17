@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,50}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -63,12 +63,17 @@ class SignUpSchema(BaseModel):
             raise ValueError(msg)
         return value
 
-    @model_validator(mode="after")
-    def passwords_match(self) -> SignUpSchema:
-        if self.password != self.confirm_password:
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, value: str, info: ValidationInfo) -> str:
+        # A field validator (not a model validator) so the message lands on this
+        # field and still shows when other fields are invalid. `password` is
+        # missing from info.data when it failed its own checks; skip then.
+        password = info.data.get("password")
+        if password is not None and value != password:
             msg = "Passwords do not match."
             raise ValueError(msg)
-        return self
+        return value
 
 
 class LoginSchema(BaseModel):

@@ -104,12 +104,12 @@ class AuthService:
             raise ValidationError(GENERIC_LOGIN_ERROR)
 
         if user.is_locked(now):
-            minutes_left = self._minutes_left(user, now)
-            msg = f"Too many failed attempts. Try again in {minutes_left} minute(s)."
-            raise ForbiddenError(msg)
+            raise self._locked_error(user, now)
 
         if not verify_password(data.password, user.password_hash):
             self._record_failure(user, now)
+            if user.is_locked(now):  # this attempt triggered the lock: say so now
+                raise self._locked_error(user, now)
             raise ValidationError(GENERIC_LOGIN_ERROR)
 
         if not user.is_active:
@@ -145,6 +145,11 @@ class AuthService:
         self.users.record_failed_login(user.id or 0, attempts, locked_until)
         user.failed_login_attempts = attempts
         user.locked_until = locked_until
+
+    def _locked_error(self, user: Person, now: datetime) -> ForbiddenError:
+        minutes_left = self._minutes_left(user, now)
+        msg = f"Too many failed attempts. Try again in {minutes_left} minute(s)."
+        return ForbiddenError(msg)
 
     @staticmethod
     def _minutes_left(user: Person, now: datetime) -> int:
