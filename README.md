@@ -31,7 +31,8 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 python -c "import secrets; print(secrets.token_hex(32))"   # paste the output into .env
 
-# 4. Start MySQL: open the XAMPP Control Panel and click "Start" next to MySQL
+# 4. Start MySQL from the terminal (no Control Panel needed)
+.\scripts\mysql.ps1                 # start; `.\scripts\mysql.ps1 stop` / `status` also work
 
 # 5. Create the database and tables (choose ONE of the two ways below)
 python scripts\init_db.py          # way A: Python script (creates greenhands + greenhands_test)
@@ -67,7 +68,7 @@ with the passwords you put in `.env`.
 |---|---|
 | Activate venv | `.\venv\Scripts\Activate.ps1` |
 | Install dependencies | `pip install -r requirements.txt` |
-| Start MySQL | XAMPP Control Panel -> MySQL -> Start |
+| Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (XAMPP's mysqld, run from the terminal) |
 | Create database + tables | `python scripts\init_db.py` (or import `database/schema.sql` in phpMyAdmin) |
 | Seed demo data | `python seed.py` (add `--big` for 1,000 activities) |
 | Dev server | `flask --app app run --debug` |

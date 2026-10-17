@@ -64,7 +64,7 @@ DB_AVAILABLE = _database_reachable()
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Mark tests under tests/integration and tests/e2e; skip both when MySQL is down."""
-    skip = pytest.mark.skip(reason="MySQL not reachable (start it in the XAMPP Control Panel)")
+    skip = pytest.mark.skip(reason="MySQL not reachable (run ./scripts/mysql.ps1 to start it)")
     for item in items:
         path = str(item.path)
         if "integration" in path or "e2e" in path:
