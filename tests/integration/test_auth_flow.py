@@ -1,8 +1,9 @@
 """Integration tests for sign-up, login, lockout and role gates (FR-1, FR-2, FR-4, FR-6).
 
 These drive the real controllers with Flask's test client against the test
-database (CSRF and rate limits are off in TestConfig; they are covered by the
-Playwright test and by manual checks). Every table is emptied after each test.
+database. TestConfig turns CSRF and rate limits off; CSRF is covered by the
+Playwright test and rate limits by the dedicated test at the bottom of this
+file, which builds its own app. Every table is emptied after each test.
 """
 
 from __future__ import annotations
