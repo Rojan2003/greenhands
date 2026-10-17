@@ -78,10 +78,25 @@ def _nav_for_current_user() -> Nav:
     if current_user.role_name == RoleName.ADMIN:
         items = [
             _item("Dashboard", "home", "admin.dashboard"),
-            _item("Manage Activities", "tree", None),
-            _item("Manage Locations", "pin", None),
+            _item(
+                "Manage Activities",
+                "tree",
+                "admin_activities.list_activities",
+                section="admin_activities",
+            ),
+            _item(
+                "Manage Locations",
+                "pin",
+                "admin_locations.list_locations",
+                section="admin_locations",
+            ),
             _item("Registrations", "list", None),
-            _item("Volunteers", "users", None),
+            _item(
+                "Volunteers",
+                "users",
+                "admin_volunteers.list_volunteers",
+                section="admin_volunteers",
+            ),
             _item("Reports", "chart", None),
             _item("Audit Logs", "log", None),
         ]

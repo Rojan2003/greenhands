@@ -120,6 +120,44 @@ class UserDAO(BaseDAO):
         )
         return [int(r["id"]) for r in rows]
 
+    def search_volunteers(
+        self, search: str | None = None, *, limit: int = 20, offset: int = 0
+    ) -> list[Person]:
+        """Volunteers (never admins) for the admin list, filtered by a search box.
+
+        The search matches first name, last name, username or email. The LIKE
+        wildcards are part of the VALUE ("%ana%"), never pasted into the SQL text.
+        """
+        sql = _SELECT + "WHERE r.name = %s"
+        params: list[Any] = [RoleName.VOLUNTEER.value]
+        sql, params = self._add_volunteer_search(sql, params, search)
+        sql += " ORDER BY u.last_name, u.first_name, u.id LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+        return [self.to_model(r) for r in self.db.fetch_all(sql, tuple(params))]
+
+    def count_volunteers(self, search: str | None = None) -> int:
+        """How many volunteers match the same search (for the page count)."""
+        sql = "SELECT COUNT(*) AS n FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = %s"
+        params: list[Any] = [RoleName.VOLUNTEER.value]
+        sql, params = self._add_volunteer_search(sql, params, search)
+        row = self.db.fetch_one(sql, tuple(params))
+        return int(row["n"]) if row else 0
+
+    @staticmethod
+    def _add_volunteer_search(
+        sql: str, params: list[Any], search: str | None
+    ) -> tuple[str, list[Any]]:
+        """Append the shared LIKE filter so the list and its count always agree."""
+        text = (search or "").strip()
+        if text:
+            sql += (
+                " AND (u.first_name LIKE %s OR u.last_name LIKE %s "
+                "OR u.username LIKE %s OR u.email LIKE %s)"
+            )
+            like = "%" + text + "%"
+            params.extend([like, like, like, like])
+        return sql, params
+
     # ---- writes ----
     def insert(self, person: Person) -> int:
         """Insert the users row and return the new id (profiles: VolunteerProfileDAO)."""

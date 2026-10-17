@@ -13,10 +13,17 @@ from pydantic import ValidationError as PydanticValidationError
 from app.errors import ValidationError
 
 
-def validate[SchemaT: BaseModel](schema: type[SchemaT], data: dict[str, Any]) -> SchemaT:
-    """Validate raw form data; raise ValidationError with one message per field."""
+def validate[SchemaT: BaseModel](
+    schema: type[SchemaT], data: dict[str, Any], *, context: dict[str, Any] | None = None
+) -> SchemaT:
+    """Validate raw form data; raise ValidationError with one message per field.
+
+    `context` is handed to the schema's validators (`info.context`). Schemas use it
+    for facts the form itself cannot know, such as today's date or whether the
+    record is being created or edited.
+    """
     try:
-        return schema.model_validate(data)
+        return schema.model_validate(data, context=context)
     except PydanticValidationError as exc:
         errors: dict[str, str] = {}
         for err in exc.errors():
