@@ -14,7 +14,7 @@
 <div class="mt-8 grid gap-6 md:grid-cols-3">
   {% set cards = [
     ("Activities", "Browse open tree-planting activities and find one near you.", "Browse Activities", url_for("activities.list_activities"), "tree"),
-    ("My Registrations", "Track the status of every activity you signed up for.", "View Registrations", "#", "list"),
+    ("My Registrations", "Track the status of every activity you signed up for.", "View Registrations", url_for("registrations.list_registrations"), "list"),
     ("My Profile", "Keep your contact details and emergency contact up to date.", "Edit Profile", url_for("profile.view"), "user"),
   ] %}
   {% for title, text, button, url, icon in cards %}

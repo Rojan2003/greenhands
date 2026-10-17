@@ -7,15 +7,18 @@ from datetime import datetime
 from typing import Any
 
 from app.dao.base_dao import BaseDAO
-from app.models import Registration, RegistrationStatus
+from app.models import ActivityStatus, Registration, RegistrationStatus
 
 _SELECT = """
 SELECT g.id, g.activity_id, g.user_id, g.status, g.registration_date, g.reviewed_at,
        g.reviewed_by, g.remarks,
        a.title AS activity_title, a.activity_date,
+       a.start_time AS activity_start_time, a.end_time AS activity_end_time,
+       a.status AS activity_status, l.location_name,
        CONCAT(u.first_name, ' ', u.last_name) AS volunteer_name
 FROM registrations g
 JOIN activities a ON a.id = g.activity_id
+JOIN locations l ON l.id = a.location_id
 JOIN users u ON u.id = g.user_id
 """
 
@@ -36,6 +39,18 @@ class RegistrationDAO(BaseDAO):
             activity_date=BaseDAO.to_date(row["activity_date"])
             if row.get("activity_date")
             else None,
+            activity_start_time=(
+                BaseDAO.to_time(row["activity_start_time"])
+                if row.get("activity_start_time")
+                else None
+            ),
+            activity_end_time=(
+                BaseDAO.to_time(row["activity_end_time"]) if row.get("activity_end_time") else None
+            ),
+            activity_status=(
+                ActivityStatus(row["activity_status"]) if row.get("activity_status") else None
+            ),
+            location_name=row.get("location_name"),
             volunteer_name=row.get("volunteer_name"),
         )
 
