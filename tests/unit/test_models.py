@@ -60,6 +60,7 @@ def test_to_dict_converts_enums_and_dates() -> None:
         "location_name": "Park",
         "address": "Main St",
         "details": None,
+        "activity_count": 0,  # not a column; filled by LocationDAO.list_with_activity_counts()
     }
     act = make_activity()
     data = act.to_dict()
