@@ -31,7 +31,7 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 python -c "import secrets; print(secrets.token_hex(32))"   # paste the output into .env
 
-# 4. Start MySQL from the terminal (no Control Panel needed)
+# 4. Start XAMPP's MySQL from the terminal (same MariaDB as the Control Panel; the Control Panel's Start/Stop buttons still work too)
 .\scripts\mysql.ps1                 # start; `.\scripts\mysql.ps1 stop` / `status` also work
 
 # 5. Create the database and tables (choose ONE of the two ways below)
@@ -68,7 +68,7 @@ with the passwords you put in `.env`.
 |---|---|
 | Activate venv | `.\venv\Scripts\Activate.ps1` |
 | Install dependencies | `pip install -r requirements.txt` |
-| Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (XAMPP's mysqld, run from the terminal) |
+| Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (runs XAMPP's own mysqld; the XAMPP Control Panel works as well) |
 | Create database + tables | `python scripts\init_db.py` (or import `database/schema.sql` in phpMyAdmin) |
 | Seed demo data | `python seed.py` (add `--big` for 1,000 activities) |
 | Dev server | `flask --app app run --debug` |
