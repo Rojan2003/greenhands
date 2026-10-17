@@ -28,6 +28,7 @@ _ICON = {
     "pin": '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.7 13.7L12 19.4l-5.7-5.7a8 8 0 1111.4 0z"/><circle cx="12" cy="11" r="3"/></svg>',
     "users": '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.4-1.8M17 20H7m10 0v-2c0-.7-.1-1.3-.4-1.8M7 20H2v-2a3 3 0 015.4-1.8M7 20v-2c0-.7.1-1.3.4-1.8m0 0a5 5 0 019.2 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
     "chart": '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V13M15 19V5M21 19H3M3 19v-6"/></svg>',
+    "calendar": '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>',
     "log": '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 4h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>',
 }
 
@@ -109,12 +110,22 @@ def _nav_for_current_user() -> Nav:
         items = [
             _item("Dashboard", "home", "volunteer.dashboard"),
             _item("Activities", "tree", "activities.list_activities", section="activities"),
-            _item("My Registrations", "list", None),
+            _item("My Registrations", "list", "registrations.list_registrations"),
+            _item("My Schedule", "calendar", "registrations.schedule"),
             _item("My Profile", "user", "profile.view", section="profile"),
-            _item("Notifications", "bell", None),
+            _item(
+                "Notifications",
+                "bell",
+                "notifications.list_notifications",
+                section="notifications",
+            ),
         ]
     unread = NotificationService.build().unread_count(int(current_user.get_id()))
-    return Nav(items=items, unread_count=unread)
+    return Nav(
+        items=items,
+        unread_count=unread,
+        notifications_url=url_for("notifications.list_notifications"),
+    )
 
 
 def nav_icon(name: str) -> Markup:

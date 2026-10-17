@@ -76,7 +76,9 @@ def create_app(
     from app.controllers.admin_volunteers import admin_volunteers_bp
     from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
+    from app.controllers.notifications import notifications_bp
     from app.controllers.profile import profile_bp
+    from app.controllers.registrations import registrations_bp
     from app.controllers.volunteer import volunteer_bp
     from app.navigation import build_nav, nav_icon
 
@@ -87,6 +89,8 @@ def create_app(
         volunteer_bp,
         profile_bp,
         activities_bp,
+        registrations_bp,
+        notifications_bp,
         admin_bp,
         admin_activities_bp,
         admin_locations_bp,

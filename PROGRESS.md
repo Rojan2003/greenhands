@@ -13,8 +13,9 @@ one failure case), audit logging where needed, and a responsive UI.
 | 3 Admin: volunteers, locations, activities | **Merged** | `feat/admin-manage`, PR #6 |
 | 4 Browse activities | **Merged** | `feat/browse-activities`, PR #7 |
 | 5 Register for an activity | **Merged** | `feat/register`, PR #8 |
-| 6 Admin review of registrations | **Ready for review** (489 unit+integration, 7 e2e) | `feat/admin-review` (built in the main folder) |
-| 7-9 | Not started | one branch per phase, off `main` |
+| 6 Admin review of registrations | **Merged** | `feat/admin-review`, PR #9 |
+| 7 My registrations, schedule, notifications | **Ready for review** (509 unit+integration, 8 e2e) | `feat/my-registrations` (built in the main folder) |
+| 8-9 | Not started | one branch per phase, off `main` |
 
 `main` is on GitHub (default branch) and only moves through pull requests. 218 unit +
 integration tests and 3 Playwright tests pass on `main`; CI (ruff, mypy, pytest, e2e) is
@@ -41,14 +42,12 @@ patterns to keep naming in code and in the defense: Singleton (`DatabaseManager`
 per table, all SQL), Template Method (`BaseReport`).
 
 ### Next steps, in order
-1. Phase 6 (`feat/admin-review`): review, PR, merge.
-2. Phase 7 (my registrations, schedule, notifications): volunteer list with status tabs
-   (`RegistrationDAO.list_by_user()` exists), cancel only PENDING / APPROVED and not started
-   (`Registration.can_be_cancelled`, `Activity.has_started()`), notify admins + audit
-   `REGISTRATION_CANCELLED`, schedule + history, notifications page with mark-as-read
-   (`NotificationDAO.mark_read()` / `mark_all_read()` exist). Sidebar links "My Registrations"
-   and "Notifications" are still `#`; the dashboard card "View Registrations" too.
-3. Then Phases 8 and 9 as listed below, one branch and one PR each.
+1. Phase 7 (`feat/my-registrations`): review, PR, merge.
+2. Phase 8 (reports and audit logs): admin "Reports" page built on the `BaseReport` template method
+   (`VolunteerActivityReport`, `SystemTotalsReport` in `app/services/reports/`) with filters, CSV export
+   and a printable view; "Audit Logs" viewer with filters on `AuditLogDAO.search()`. Sidebar links
+   "Reports" and "Audit Logs" are still `#`.
+3. Phase 9 (polish and deploy) as listed below.
 
 ### Open items
 - **Branch protection:** create the "Protect main" ruleset in GitHub (Settings -> Rules -> Rulesets):
@@ -129,17 +128,21 @@ per table, all SQL), Template Method (`BaseReport`).
 - [x] Tests: `tests/unit/test_registration_service.py` (fake DAOs: one transaction, lock inside it, locking count, audit + admin notifications, every refusal, cancelled row re-used, `can_register` table), `tests/integration/test_register_flow.py` (row + audit + one notification per admin, details page flips to Pending and slots drop by one, duplicate / full / closed / rejected refused with no new row, admin 403, 404 page, cancelled row re-used with the same id, second volunteer loses the last slot), `tests/e2e/test_register.py` (Playwright: click Register, see "You are registered" and 24 of 25 slots left); Phase 4's two placeholder-button assertions updated. 459 unit+integration and 6 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-6 updated
 
-## Phase 6: Admin review (branch `feat/admin-review`, ready for review)
+## Phase 6: Admin review (merged: PR #9)
 - [x] Pending list; approve re-checks capacity; reject requires remarks: `/admin/registrations` (`app/controllers/admin_registrations.py`, `templates/admin/registrations.html`), 20 per page, oldest request first, `?status=` filter (PENDING by default, `all` for every status; `RegistrationDAO.search()` / `count_search()` share `_status_filter()`), each pending row has an Approve form (`confirm()`) and a Reject form with a required remarks box; `RegistrationReviewService` (`app/services/review_service.py`, every method ADMIN-only via `require_role`): only a PENDING row can be reviewed (a second review is refused with "already APPROVED"), `approve()` locks the activity row (`ActivityDAO.lock_for_update()`) and re-checks capacity with a locking count of APPROVED rows (`RegistrationDAO.count_for_activity(..., for_update=True)`), refuses CANCELLED / COMPLETED activities (CLOSED is fine: it only stops new sign-ups); `reject()` validates `RejectSchema` (`app/schemas/review.py`, remarks 3-500 characters) before touching the database
 - [x] reviewed_by / reviewed_at, notify volunteer, audit log: `RegistrationDAO.review()` stores status, `reviewed_by`, `reviewed_at`, `remarks`; the volunteer gets `REGISTRATION_APPROVED` or `REGISTRATION_REJECTED` (the message repeats the remarks); audit `REGISTRATION_APPROVED` / `REGISTRATION_REJECTED` (entity `registration`); all three writes in one transaction. The volunteer's details page (Phase 5) shows the Rejected badge with the remarks
 - [x] Navigation: sidebar "Registrations" opens the pending list (highlighted on the whole blueprint); the admin dashboard's "Pending Registrations" / "Approved Registrations" cards link to the filtered list, and each "Recent Registrations" row has a Review / View link that jumps to its row (`#registration-<id>`); `Registration.activity_date` is filled by the DAO join for the list
 - [x] Tests: `tests/unit/test_review_service.py` (fake DAOs: one transaction with the lock inside it, locking APPROVED count, review fields, volunteer notification, audit, capacity refusal, cancelled / completed refusal, CLOSED allowed, non-PENDING refused, remarks required, list filter), `tests/unit/test_dao.py` (search / count_search / count_for_activity SQL), `tests/integration/test_admin_review_flow.py` (403 for volunteers, pending list, approve with reviewed_by / reviewed_at / notification / audit, reject without then with remarks, double review refused, approve refused when approved slots are full or the activity is cancelled, 404, filter + pagination with 22 rows, dashboard links, volunteer sees the rejection and remarks), `tests/e2e/test_admin_review.py` (Playwright: approve one row, reject another with remarks, see the remarks under the Rejected badge). 489 unit+integration and 7 e2e tests pass
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 updated
 
-## Phase 7: My registrations, schedule, notifications
-- [ ] Registration status list with tabs
-- [ ] Cancel rules (PENDING/APPROVED and not started); notify admin + audit log
-- [ ] Schedule + history; notifications with mark-as-read
+## Phase 7: My registrations, schedule, notifications (branch `feat/my-registrations`, ready for review)
+- [x] Registration status list with tabs: `/registrations` (`app/controllers/registrations.py`, `templates/volunteer/registrations/list.html`), tabs All / Pending / Approved / Rejected / Cancelled / Completed with counts (`MyRegistrationsService.list_mine()` in `app/services/my_registrations_service.py`, VOLUNTEER-only, reads only the actor's own rows via `RegistrationDAO.list_by_user()`); each row links to the activity and shows date, time, location, review date and the admin's remarks; `RegistrationDAO` now joins `locations` and exposes `activity_start_time` / `activity_end_time` / `activity_status` / `location_name` on `Registration`
+- [x] Cancel rules (PENDING/APPROVED and not started); notify admin + audit log: `POST /registrations/<id>/cancel` -> `MyRegistrationsService.cancel()` inside one transaction under the activity row lock (same lock order as registering and reviewing): someone else's row is a 404 (never revealed), REJECTED / CANCELLED / COMPLETED rows are refused, a started activity is refused, otherwise `set_status(CANCELLED)`, one `REGISTRATION_CANCELLED` notification per administrator and the `REGISTRATION_CANCELLED` audit entry ("APPROVED -> CANCELLED"); the slot is free again and registering again re-uses the row (Phase 5); `Registration.can_cancel()` / `activity_has_started()` / `activity_hours` are the model-side rules used by the template
+- [x] Schedule + history: `/registrations/schedule` (`schedule.html`): Upcoming = PENDING / APPROVED rows dated today or later (soonest first), History = COMPLETED rows or past PENDING / APPROVED rows (most recent first; rejected and cancelled rows never appear), cards for upcoming count, completed count and hours volunteered (APPROVED + COMPLETED rows in the history)
+- [x] Notifications with mark-as-read: `/notifications` for BOTH roles (`app/controllers/notifications.py`, `templates/notifications/list.html`): newest 50 messages with a type label, unread rows highlighted, "Mark as read" per row (`POST /notifications/<id>/read`, the DAO's WHERE includes the user id so another user's message is a 404) and "Mark all as read" (`POST /notifications/read-all`); `NotificationService.mark_read()` / `mark_all_read()`; the header bell now opens the inbox and keeps its unread badge
+- [x] Navigation: sidebar "My Registrations", "My Schedule" (new calendar icon) and "Notifications" open the pages; dashboard card "View Registrations" and the details page's "View my registrations" link too
+- [x] Tests: `tests/unit/test_my_registrations_service.py` (fake DAOs: own rows only with tab counts, schedule split + hours, cancel for PENDING / APPROVED with lock inside the transaction + admin notifications + audit, refusals for no-slot rows / started activity / someone else's row, role check, mark-read uses the actor's id and 404s), `tests/integration/test_my_registrations_flow.py` (admin 403, tabs and counts, empty state, cancel frees the slot + notifies every admin + audits + register again re-uses the row, refusals, schedule split, inbox with per-row and mark-all read, badge count, admin inbox gets registration events), `tests/e2e/test_my_registrations.py` (Playwright: cancel from My Registrations, see the Cancelled tab, empty schedule, read a notification from the bell). 509 unit+integration and 8 e2e tests pass
+- [x] REQUIREMENTS.md rows FR-3, FR-6 updated
 
 ## Phase 8: Reports and audit logs
 - [ ] Reports on screen with filters; CSV export; printable view

@@ -59,6 +59,7 @@
         <p class="mt-1 text-gray-600">
           {% if registration.status.value == "PENDING" %}An administrator will review your request.{% else %}See you there!{% endif %}
         </p>
+        <a href="{{ url_for('registrations.list_registrations') }}" class="mt-2 inline-block text-sm font-medium text-brand hover:underline">View my registrations</a>
       </div>
 
       {% elif registration and registration.status.value in ("REJECTED", "COMPLETED") %}
