@@ -66,3 +66,22 @@ class LocationDAO(BaseDAO):
             "SELECT COUNT(*) AS n FROM activities WHERE location_id = %s", (location_id,)
         )
         return int(row["n"]) if row else 0
+
+    def list_with_activity_counts(self) -> list[Location]:
+        """Every location with `activity_count` filled in (one query, LEFT JOIN + COUNT).
+
+        LEFT JOIN keeps locations that have no activities yet (their count is 0).
+        """
+        rows = self.db.fetch_all(
+            "SELECT l.id, l.location_name, l.address, l.details, "
+            "COUNT(a.id) AS activity_count "
+            "FROM locations l LEFT JOIN activities a ON a.location_id = l.id "
+            "GROUP BY l.id, l.location_name, l.address, l.details "
+            "ORDER BY l.location_name"
+        )
+        locations = []
+        for r in rows:
+            location = self.to_model(r)
+            location.activity_count = int(r.get("activity_count") or 0)
+            locations.append(location)
+        return locations

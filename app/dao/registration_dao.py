@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -137,3 +138,22 @@ class RegistrationDAO(BaseDAO):
             (status.value, reviewed_by, reviewed_at, remarks, registration_id),
         )
         return affected > 0
+
+    def list_user_ids_by_activity(
+        self, activity_id: int, statuses: Iterable[RegistrationStatus]
+    ) -> list[int]:
+        """Ids of the volunteers registered for an activity in any of the given statuses.
+
+        Used to notify everyone who still holds a slot when an activity is cancelled.
+        The IN (...) list is built from one %s per status, so values stay parameters.
+        """
+        values = [status.value for status in statuses]
+        if not values:
+            return []
+        placeholders = ", ".join(["%s"] * len(values))
+        rows = self.db.fetch_all(
+            "SELECT user_id FROM registrations WHERE activity_id = %s "
+            "AND status IN (" + placeholders + ") ORDER BY user_id",
+            (activity_id, *values),
+        )
+        return [int(r["user_id"]) for r in rows]

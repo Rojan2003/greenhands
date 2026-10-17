@@ -316,3 +316,69 @@ def test_audit_search_adds_only_given_filters(fake_db: FakeDatabaseManager) -> N
     assert "l.action = %s" in fake_db.last_sql
     assert "l.user_id = %s" not in fake_db.last_sql
     assert fake_db.last_params == ("CREATE", date(2030, 1, 1), 50, 0)
+
+
+# ---- Phase 3 additions: admin lists ----
+def test_user_dao_search_volunteers_puts_the_wildcard_in_the_value(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = UserDAO(fake_db)  # type: ignore[arg-type]
+    fake_db.rows = [user_row()]
+
+    people = dao.search_volunteers("ana", limit=20, offset=40)
+
+    assert len(people) == 1 and isinstance(people[0], Volunteer)
+    sql, params = fake_db.calls[-1]
+    assert "r.name = %s" in sql and "u.first_name LIKE %s" in sql and "u.email LIKE %s" in sql
+    assert "%ana%" not in sql  # the wildcard travels as a parameter, never in the SQL text
+    assert params == ("VOLUNTEER", "%ana%", "%ana%", "%ana%", "%ana%", 20, 40)
+
+
+def test_user_dao_count_volunteers_without_search_has_no_like(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = UserDAO(fake_db)  # type: ignore[arg-type]
+    fake_db.rows = [{"n": 7}]
+
+    assert dao.count_volunteers("   ") == 7
+    sql, params = fake_db.calls[-1]
+    assert "LIKE" not in sql and params == ("VOLUNTEER",)
+
+
+def test_location_dao_list_with_activity_counts_fills_the_extra_field(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = LocationDAO(fake_db)  # type: ignore[arg-type]
+    fake_db.rows = [
+        {"id": 1, "location_name": "Park", "address": "Main", "details": None, "activity_count": 3},
+        {"id": 2, "location_name": "Hill", "address": "Top", "details": None, "activity_count": 0},
+    ]
+
+    locations = dao.list_with_activity_counts()
+
+    assert [(loc.id, loc.activity_count) for loc in locations] == [(1, 3), (2, 0)]
+    assert "LEFT JOIN activities" in fake_db.last_sql and "COUNT(a.id)" in fake_db.last_sql
+
+
+def test_registration_dao_list_user_ids_by_activity_binds_each_status(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
+    fake_db.rows = [{"user_id": 11}, {"user_id": 12}]
+
+    ids = dao.list_user_ids_by_activity(
+        40, [RegistrationStatus.PENDING, RegistrationStatus.APPROVED]
+    )
+
+    assert ids == [11, 12]
+    sql, params = fake_db.calls[-1]
+    assert "status IN (%s, %s)" in sql
+    assert params == (40, "PENDING", "APPROVED")
+
+
+def test_registration_dao_list_user_ids_with_no_statuses_skips_the_query(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
+    assert dao.list_user_ids_by_activity(40, []) == []
+    assert fake_db.calls == []

@@ -11,7 +11,7 @@
 <form method="get" action="{{ url_for('activities.list_activities') }}" class="card p-4 sm:p-6" role="search" aria-label="Filter activities">
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     {{ text_field("keyword", "Keyword", form, {}, type="search", hint="Searches the title and description.") }}
-    {{ select_field("location_id", "Location", location_options, selected=filters.location_id, blank="All locations") }}
+    {{ select_field("location_id", "Location", location_options, form, {}, placeholder="All locations") }}
     {{ text_field("activity_date", "Date", form, {}, type="date") }}
     <div class="flex items-end gap-3">
       <button type="submit" class="btn-primary">Apply filters</button>
@@ -54,7 +54,9 @@
   </li>
   {% endfor %}
 </ul>
-{{ paginate(page, "activities.list_activities", **filters.as_query_args()) }}
+<div class="card mt-6">
+  {{ paginate(page, "activities.list_activities", noun="activities", **filters.as_query_args()) }}
+</div>
 {% else %}
 {# ---------- Empty state ---------- #}
 <div class="card mt-6 px-5 py-12 text-center">
