@@ -25,6 +25,9 @@ env/
 app/static/css/app.css
 .tools/
 
+# --- User uploads (profile photos) live outside app/static so they are never public ---
+instance/
+
 # --- Playwright ---
 test-results/
 playwright-report/

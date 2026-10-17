@@ -15,7 +15,7 @@
   {% set cards = [
     ("Activities", "Browse open tree-planting activities and find one near you.", "Browse Activities", "#", "tree"),
     ("My Registrations", "Track the status of every activity you signed up for.", "View Registrations", "#", "list"),
-    ("My Profile", "Keep your contact details and emergency contact up to date.", "Edit Profile", "#", "user"),
+    ("My Profile", "Keep your contact details and emergency contact up to date.", "Edit Profile", url_for("profile.view"), "user"),
   ] %}
   {% for title, text, button, url, icon in cards %}
   <article class="card p-6 flex flex-col">

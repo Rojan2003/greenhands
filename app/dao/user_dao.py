@@ -15,7 +15,8 @@ from app.models import Admin, Person, RoleName, UserStatus, Volunteer, Volunteer
 # One SELECT used by every "find" so the mapping is always the same.
 _SELECT = """
 SELECT u.id, u.role_id, u.username, u.email, u.password_hash, u.first_name, u.last_name,
-       u.phone, u.status, u.failed_login_attempts, u.locked_until, u.created_at, u.updated_at,
+       u.phone, u.photo_path, u.status, u.failed_login_attempts, u.locked_until,
+       u.created_at, u.updated_at,
        r.name AS role_name,
        p.id AS profile_id, p.address, p.birth_date, p.emergency_contact_name,
        p.emergency_contact_phone, p.created_at AS profile_created_at,
@@ -40,6 +41,7 @@ class UserDAO(BaseDAO):
             "first_name": row["first_name"],
             "last_name": row["last_name"],
             "phone": row["phone"],
+            "photo_path": row.get("photo_path"),
             "status": UserStatus(row["status"]),
             "failed_login_attempts": row["failed_login_attempts"],
             "locked_until": row["locked_until"],
@@ -123,7 +125,7 @@ class UserDAO(BaseDAO):
         """Insert the users row and return the new id (profiles: VolunteerProfileDAO)."""
         new_id = self.db.execute(
             "INSERT INTO users (role_id, username, email, password_hash, first_name, last_name, "
-            "phone, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            "phone, photo_path, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 person.role_id,
                 person.username,
@@ -132,6 +134,7 @@ class UserDAO(BaseDAO):
                 person.first_name,
                 person.last_name,
                 person.phone,
+                person.photo_path,
                 person.status.value,
             ),
         )
@@ -144,6 +147,20 @@ class UserDAO(BaseDAO):
         affected = self.db.execute(
             "UPDATE users SET first_name = %s, last_name = %s, phone = %s WHERE id = %s",
             (first_name, last_name, phone, user_id),
+        )
+        return affected > 0
+
+    def update_photo(self, user_id: int, photo_path: str | None) -> bool:
+        """Store the avatar's path relative to app/static (None clears it)."""
+        affected = self.db.execute(
+            "UPDATE users SET photo_path = %s WHERE id = %s", (photo_path, user_id)
+        )
+        return affected > 0
+
+    def update_password(self, user_id: int, password_hash: str) -> bool:
+        """Replace the bcrypt hash. The service hashes; the DAO only stores."""
+        affected = self.db.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id)
         )
         return affected > 0
 

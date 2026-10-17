@@ -16,7 +16,7 @@ from typing import Any
 from flask import Flask, Response, flash, g, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, logout_user
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from app.config import Config
 from app.database import DatabaseManager
@@ -71,11 +71,12 @@ def create_app(
     from app.controllers.admin import admin_bp
     from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
+    from app.controllers.profile import profile_bp
     from app.controllers.volunteer import volunteer_bp
     from app.navigation import build_nav, nav_icon
 
     register_user_loader(login_manager)
-    for blueprint in (main_bp, auth_bp, volunteer_bp, admin_bp):
+    for blueprint in (main_bp, auth_bp, volunteer_bp, profile_bp, admin_bp):
         app.register_blueprint(blueprint)
     app.context_processor(build_nav)
     app.jinja_env.globals["nav_icon"] = nav_icon
@@ -124,13 +125,17 @@ def register_error_handlers(app: Flask) -> None:
             log.error("application error: %s", err.message, extra={"action": "app_error"})
         return render_error(err.status_code, err.message)
 
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_too_large(_err: RequestEntityTooLarge) -> tuple[str, int]:
+        # Flask stops requests above MAX_CONTENT_LENGTH before the view runs; the
+        # default text talks about "the server", which does not help the user.
+        max_mb = app.config["MAX_PHOTO_BYTES"] // (1024 * 1024)
+        return render_error(413, f"The file is too large (max {max_mb} MB).")
+
     @app.errorhandler(HTTPException)
     def handle_http_error(err: HTTPException) -> tuple[str, int]:
         code = err.code or 500
-        message = err.description
-        if code == 413:
-            message = "The file is too large."
-        return render_error(code, message)
+        return render_error(code, err.description)
 
     @app.errorhandler(Exception)
     def handle_unexpected(err: Exception) -> tuple[str, int]:

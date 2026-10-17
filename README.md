@@ -62,6 +62,12 @@ with the passwords you put in `.env`.
 
 `schema.sql` drops and recreates the tables, so importing it again wipes existing data.
 
+### Already have a database? Upgrade it instead
+
+After pulling new code, run `python scripts\upgrade_db.py`. It adds any new columns
+(for example `users.photo_path` from Phase 2) to both `greenhands` and `greenhands_test`
+and keeps your data. Running it twice is harmless; it prints "already up to date".
+
 ## Commands
 
 | Task | Command |
@@ -70,6 +76,7 @@ with the passwords you put in `.env`.
 | Install dependencies | `pip install -r requirements.txt` |
 | Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (runs XAMPP's own mysqld; the XAMPP Control Panel works as well) |
 | Create database + tables | `python scripts\init_db.py` (or import `database/schema.sql` in phpMyAdmin) |
+| Upgrade an existing database after pulling | `python scripts\upgrade_db.py` (adds missing columns, keeps data) |
 | Seed demo data | `python seed.py` (add `--big` for 1,000 activities) |
 | Dev server | `flask --app app run --debug` |
 | Unit + integration tests | `pytest` |
@@ -99,7 +106,8 @@ app/
   schemas/             Pydantic validation
   auth/                password hashing, Flask-Login loader, role decorators
 database/schema.sql    CREATE TABLE statements (import in phpMyAdmin)
-scripts/               init_db.py, tailwind.ps1 / .sh, check.ps1
+scripts/               init_db.py, upgrade_db.py, tailwind.ps1 / .sh, check.ps1
+instance/uploads/      profile photos uploaded by volunteers (git-ignored, created on first upload)
 seed.py                demo data (through the DAOs)
 tests/unit             no database (FakeDatabaseManager)
 tests/integration      real MySQL/MariaDB test database
@@ -122,6 +130,12 @@ Controllers and templates never run SQL.
 - XAMPP ships **MariaDB 10.4**. CI runs the same tests on **MySQL 8**, so both are covered.
 - If MySQL is not running, pages show "Database is not available. Is MySQL running in XAMPP?"
   instead of crashing (FR-8).
+- Profile photos are files, not database rows: they are saved as
+  `instance/uploads/avatars/user_<id>.<ext>` (`UPLOAD_FOLDER` in `app/config.py`) and only
+  `avatars/user_<id>.<ext>` is stored in `users.photo_path`. The folder is deliberately
+  outside `app/static`, which Flask serves to anyone: photos are served by the
+  login-protected route `/profile/photo/<path>` instead. The folder is git-ignored, so a
+  fresh clone starts with no photos and users see their initials until they upload one.
 
 ## Tests
 

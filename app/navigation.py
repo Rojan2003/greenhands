@@ -49,9 +49,13 @@ class Nav:
     notifications_url: str = "#"
 
 
-def _item(label: str, icon: str, endpoint: str | None) -> NavItem:
+def _item(label: str, icon: str, endpoint: str | None, *, section: str | None = None) -> NavItem:
+    """One sidebar link. `section` is a blueprint name: the link also counts as active
+    on that blueprint's other pages (e.g. "My Profile" stays highlighted on /profile/edit)."""
     url = url_for(endpoint) if endpoint else "#"
-    active = endpoint is not None and (request.endpoint or "") == endpoint
+    on_endpoint = (request.endpoint or "") == endpoint
+    in_section = section is not None and request.blueprint == section
+    active = endpoint is not None and (on_endpoint or in_section)
     return NavItem(label=label, url=url, icon=_ICON[icon], active=active)
 
 
@@ -86,7 +90,7 @@ def _nav_for_current_user() -> Nav:
             _item("Dashboard", "home", "volunteer.dashboard"),
             _item("Activities", "tree", None),
             _item("My Registrations", "list", None),
-            _item("My Profile", "user", None),
+            _item("My Profile", "user", "profile.view", section="profile"),
             _item("Notifications", "bell", None),
         ]
     unread = NotificationService.build().unread_count(int(current_user.get_id()))

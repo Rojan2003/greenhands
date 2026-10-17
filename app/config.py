@@ -7,10 +7,13 @@ from __future__ import annotations
 
 import os
 from datetime import timedelta
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+APP_ROOT = Path(__file__).resolve().parent
 
 
 class Config:
@@ -37,6 +40,13 @@ class Config:
     LOGIN_MAX_FAILED_ATTEMPTS = 5
     LOGIN_LOCKOUT_MINUTES = 15
     BCRYPT_ROUNDS = 12
+
+    # Profile photo uploads (Phase 2). Flask rejects bigger requests with 413;
+    # the extra 64 KB leaves room for the form fields around a 2 MB image.
+    MAX_PHOTO_BYTES = 2 * 1024 * 1024
+    MAX_CONTENT_LENGTH = MAX_PHOTO_BYTES + 64 * 1024
+    # Outside app/static on purpose: static files are public, photos need a login.
+    UPLOAD_FOLDER = str(APP_ROOT.parent / "instance" / "uploads")
 
 
 class TestConfig(Config):
