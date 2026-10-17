@@ -19,7 +19,7 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] README, REQUIREMENTS.md (SRS mapping), PROGRESS.md
 - [ ] `docs/design/erd.png` and `docs/design/reference.png` added to the repo (needs the files)
 
-## Phase 1: Authentication (in progress, branch `feat/auth`)
+## Phase 1: Authentication (branch `feat/auth`, ready for review)
 - [x] Pydantic schemas `SignUpSchema` / `LoginSchema` (`app/schemas/auth.py`) + `validate()` helper
 - [x] `AuthService` (`app/services/auth_service.py`): sign-up creates user + profile + audit entry in one transaction; generic login error; 5 failures -> 15-minute lockout; counter reset on success; inactive accounts blocked
 - [x] Role checks: `role_required` decorator + `require_role()` for services (`app/auth/roles.py`)
@@ -27,14 +27,13 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] Rate limit on login (10/min) and sign-up (5/min)
 - [x] Controllers: `auth` (login/logout/signup), `volunteer` dashboard, `admin` dashboard (+ `DashboardService`)
 - [x] Templates: `base.html` header + sidebar (mobile toggle), split-screen login, sign-up, both dashboards, SVG placeholder images
-- [ ] **Not yet verified in a browser or test client** (smoke test was not run before stopping)
-- [ ] Unit tests for `AuthService` and schemas (happy + failure), integration tests for sign-up / login / lockout, Playwright e2e login test (Chromium is installed)
-- [ ] REQUIREMENTS.md rows FR-1, FR-2, FR-4 need the Phase 1 files and tests filled in
+- [x] Smoke test of login / logout / sign-up / dashboards / lockout with the test client (2026-10-17). Two fixes: password-mismatch error now shows on the confirm field even when other fields fail; the lockout message appears on the attempt that triggers the lock, not one attempt later
+- [x] Tests: `tests/unit/test_schemas_auth.py`, `tests/unit/test_auth_service.py` (fake DAOs), `tests/unit/test_roles.py`, `tests/integration/test_auth_flow.py`, `tests/e2e/test_login.py` (Playwright, real server, CSRF on). 125 unit+integration and 2 e2e tests pass; CI runs the e2e step too
+- [x] REQUIREMENTS.md rows FR-1, FR-2, FR-4, FR-6 and Usability updated
 
 ### Next session
-1. Run a smoke test of login / logout / sign-up, fix anything that breaks.
-2. Write the Phase 1 tests listed above, then update REQUIREMENTS.md.
-3. Open the pull request for `feat/project-setup` once `main` exists (see open questions).
+1. Approve pushing `main` (see open questions), then open pull requests for `feat/project-setup` and `feat/auth`.
+2. Decide on "Forgot password?" and "Change Photo", then start Phase 2 (volunteer profile).
 
 ### Open questions
 - **Remote `main` branch:** GitHub has no `main` yet (the repo was empty, so `feat/project-setup` became the default). Approve pushing the first scaffolding commit to `main` so pull requests can be opened.

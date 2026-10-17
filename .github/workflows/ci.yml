@@ -57,3 +57,9 @@ jobs:
 
       - name: Unit + integration tests
         run: pytest
+
+      - name: Install Chromium for Playwright
+        run: playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pytest tests/e2e

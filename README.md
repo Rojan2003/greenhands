@@ -128,6 +128,9 @@ Controllers and templates never run SQL.
 - `tests/integration` uses `TEST_DB_NAME` from `.env`. It rebuilds that database from
   `schema.sql` once per run and empties the tables after every test. If MySQL is not
   reachable these tests are skipped, not failed. CI always runs them.
+- `tests/e2e` drives a real Chromium browser (Playwright) against a Flask server started
+  on a free port with CSRF enabled. They are not part of the plain `pytest` run; use
+  `pytest tests/e2e` after `playwright install chromium`. They also skip when MySQL is down.
 
 ## Line endings
 
