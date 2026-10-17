@@ -274,17 +274,21 @@ def test_registration_search_and_count_share_the_status_filter(
 ) -> None:
     dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
     dao.search(status=RegistrationStatus.PENDING, limit=20, offset=40)
-    assert "WHERE g.status = %s" in fake_db.last_sql
-    assert "ORDER BY g.registration_date, g.id LIMIT %s OFFSET %s" in fake_db.last_sql
-    assert fake_db.last_params == ("PENDING", 20, 40)
+    search_sql, search_params = fake_db.calls[-1]
+    assert "WHERE g.status = %s" in search_sql
+    assert "ORDER BY g.registration_date, g.id LIMIT %s OFFSET %s" in search_sql
+    assert search_params == ("PENDING", 20, 40)
+
     fake_db.rows = [{"n": 3}]
     assert dao.count_search(status=RegistrationStatus.PENDING) == 3
-    assert fake_db.last_sql.endswith("WHERE g.status = %s") and fake_db.last_params == ("PENDING",)
+    count_sql, count_params = fake_db.calls[-1]
+    assert count_sql.endswith("WHERE g.status = %s") and count_params == ("PENDING",)
+
     fake_db.rows = []  # the count row above is not a registration row
     dao.search(status=None)
-    assert "WHERE" not in fake_db.last_sql  # every status
+    assert "WHERE" not in fake_db.calls[-1][0]  # every status
     fake_db.rows = [{"n": 3}]
-    assert dao.count_search() == 3 and fake_db.last_params == ()
+    assert dao.count_search() == 3 and fake_db.calls[-1][1] == ()
 
 
 def test_registration_count_for_activity_binds_statuses_and_can_lock(
