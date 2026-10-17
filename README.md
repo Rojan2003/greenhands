@@ -31,7 +31,8 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 python -c "import secrets; print(secrets.token_hex(32))"   # paste the output into .env
 
-# 4. Start MySQL: open the XAMPP Control Panel and click "Start" next to MySQL
+# 4. Start XAMPP's MySQL from the terminal (same MariaDB as the Control Panel; the Control Panel's Start/Stop buttons still work too)
+.\scripts\mysql.ps1                 # start; `.\scripts\mysql.ps1 stop` / `status` also work
 
 # 5. Create the database and tables (choose ONE of the two ways below)
 python scripts\init_db.py          # way A: Python script (creates greenhands + greenhands_test)
@@ -67,7 +68,7 @@ with the passwords you put in `.env`.
 |---|---|
 | Activate venv | `.\venv\Scripts\Activate.ps1` |
 | Install dependencies | `pip install -r requirements.txt` |
-| Start MySQL | XAMPP Control Panel -> MySQL -> Start |
+| Start / stop MySQL | `.\scripts\mysql.ps1` / `.\scripts\mysql.ps1 stop` (runs XAMPP's own mysqld; the XAMPP Control Panel works as well) |
 | Create database + tables | `python scripts\init_db.py` (or import `database/schema.sql` in phpMyAdmin) |
 | Seed demo data | `python seed.py` (add `--big` for 1,000 activities) |
 | Dev server | `flask --app app run --debug` |
@@ -128,6 +129,9 @@ Controllers and templates never run SQL.
 - `tests/integration` uses `TEST_DB_NAME` from `.env`. It rebuilds that database from
   `schema.sql` once per run and empties the tables after every test. If MySQL is not
   reachable these tests are skipped, not failed. CI always runs them.
+- `tests/e2e` drives a real Chromium browser (Playwright) against a Flask server started
+  on a free port with CSRF enabled. They are not part of the plain `pytest` run; use
+  `pytest tests/e2e` after `playwright install chromium`. They also skip when MySQL is down.
 
 ## Line endings
 

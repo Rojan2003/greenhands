@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - GreenHands{% endblock %}
+{% block page_title %}Welcome, {{ user.first_name }}!{% endblock %}
+{% block page_subtitle %}Here is what you can do today.{% endblock %}
+{% block content %}
+<section class="relative overflow-hidden rounded-xl bg-brand text-white shadow-sm">
+  <img src="{{ url_for('static', filename='images/banner.svg') }}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-90">
+  <div class="relative px-6 py-12 sm:px-10 sm:py-16 max-w-2xl">
+    <h2 class="text-3xl sm:text-4xl font-bold leading-tight">Be the Change.</h2>
+    <p class="mt-2 text-lg text-white/90">Join. Volunteer. Make an Impact.</p>
+  </div>
+</section>
+
+<div class="mt-8 grid gap-6 md:grid-cols-3">
+  {% set cards = [
+    ("Activities", "Browse open tree-planting activities and find one near you.", "Browse Activities", "#", "tree"),
+    ("My Registrations", "Track the status of every activity you signed up for.", "View Registrations", "#", "list"),
+    ("My Profile", "Keep your contact details and emergency contact up to date.", "Edit Profile", "#", "user"),
+  ] %}
+  {% for title, text, button, url, icon in cards %}
+  <article class="card p-6 flex flex-col">
+    <span class="h-11 w-11 rounded-lg bg-brand-light text-brand flex items-center justify-center" aria-hidden="true">
+      {{ nav_icon(icon) }}
+    </span>
+    <h3 class="mt-4 text-lg font-bold text-brand-dark">{{ title }}</h3>
+    <p class="mt-1 text-sm text-gray-500 flex-1">{{ text }}</p>
+    <a href="{{ url }}" class="btn-primary mt-5 self-start">{{ button }}</a>
+  </article>
+  {% endfor %}
+</div>
+
+<p class="mt-10 text-center text-sm text-gray-500 italic">Together for a Cleaner, Greener, and Healthier Tomorrow.</p>
+{% endblock %}

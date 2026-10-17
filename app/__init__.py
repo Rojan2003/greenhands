@@ -13,7 +13,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import Flask, render_template
+from flask import Flask, Response, render_template, request
+from flask_login import current_user
 from werkzeug.exceptions import HTTPException
 
 from app.config import Config
@@ -66,10 +67,30 @@ def create_app(
 
     # --- controllers (blueprints) ---
     from app.auth.loader import register_user_loader
+    from app.controllers.admin import admin_bp
+    from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
+    from app.controllers.volunteer import volunteer_bp
+    from app.navigation import build_nav, nav_icon
 
     register_user_loader(login_manager)
-    app.register_blueprint(main_bp)
+    for blueprint in (main_bp, auth_bp, volunteer_bp, admin_bp):
+        app.register_blueprint(blueprint)
+    app.context_processor(build_nav)
+    app.jinja_env.globals["nav_icon"] = nav_icon
+
+    # --- FR-1: login is required for every page except these ---
+    public_endpoints = {"auth.login", "auth.signup", "main.health", "static"}
+
+    @app.before_request
+    def require_login() -> Response | None:
+        endpoint = request.endpoint
+        if endpoint is None or endpoint in public_endpoints:
+            return None
+        if not current_user.is_authenticated:
+            unauthorized: Response = login_manager.unauthorized()
+            return unauthorized
+        return None
 
     register_error_handlers(app)
     log.info("app created", extra={"action": "startup"})
