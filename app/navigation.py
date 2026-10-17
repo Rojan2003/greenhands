@@ -14,6 +14,7 @@ from flask import request, url_for
 from flask_login import current_user
 from markupsafe import Markup
 
+from app.errors import DatabaseError
 from app.models import RoleName
 from app.services.notification_service import NotificationService
 
@@ -55,9 +56,20 @@ def _item(label: str, icon: str, endpoint: str | None) -> NavItem:
 
 
 def build_nav() -> dict[str, Any]:
-    """Context processor: exposes `nav` to every template."""
-    if not current_user.is_authenticated:
+    """Context processor: exposes `nav` to every template.
+
+    It must never raise: it also runs while the FR-8 error page is rendered,
+    when MySQL may be down. The page then simply gets an empty menu.
+    """
+    try:
+        return {"nav": _nav_for_current_user()}
+    except DatabaseError:
         return {"nav": Nav(items=[])}
+
+
+def _nav_for_current_user() -> Nav:
+    if not current_user.is_authenticated:
+        return Nav(items=[])
 
     if current_user.role_name == RoleName.ADMIN:
         items = [
@@ -78,7 +90,7 @@ def build_nav() -> dict[str, Any]:
             _item("Notifications", "bell", None),
         ]
     unread = NotificationService.build().unread_count(int(current_user.get_id()))
-    return {"nav": Nav(items=items, unread_count=unread)}
+    return Nav(items=items, unread_count=unread)
 
 
 def nav_icon(name: str) -> Markup:

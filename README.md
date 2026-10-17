@@ -140,4 +140,5 @@ default `core.autocrlf=true`; Git converts on checkout and commit.
 
 ## Image credits
 
-Placeholder images will be added in Phase 1 and 4 (free images, credited here).
+The current images are hand-drawn SVG placeholders in `app/static/images` (no attribution
+needed). Photos added in later phases will be credited here.

@@ -48,6 +48,10 @@ class SignUpSchema(BaseModel):
         if not re.search(r"[A-Za-z]", value) or not re.search(r"[0-9]", value):
             msg = "Password needs at least one letter and one number."
             raise ValueError(msg)
+        if len(value.encode("utf-8")) > PASSWORD_MAX:
+            # bcrypt counts bytes, Pydantic counts characters: accented letters take 2+.
+            msg = f"Password is too long (max {PASSWORD_MAX} bytes)."
+            raise ValueError(msg)
         return value
 
     @field_validator("phone", "address", mode="before")
