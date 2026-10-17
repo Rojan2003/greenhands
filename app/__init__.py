@@ -72,6 +72,7 @@ def create_app(
     from app.controllers.admin import admin_bp
     from app.controllers.admin_activities import admin_activities_bp
     from app.controllers.admin_locations import admin_locations_bp
+    from app.controllers.admin_registrations import admin_registrations_bp
     from app.controllers.admin_volunteers import admin_volunteers_bp
     from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
@@ -89,6 +90,7 @@ def create_app(
         admin_bp,
         admin_activities_bp,
         admin_locations_bp,
+        admin_registrations_bp,
         admin_volunteers_bp,
     )
     for blueprint in blueprints:

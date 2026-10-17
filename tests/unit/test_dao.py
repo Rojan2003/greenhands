@@ -269,6 +269,36 @@ def test_registration_count_slot_taking_for_update_is_a_locking_read(
     assert "LOCK IN SHARE MODE" not in fake_db.last_sql  # plain read by default
 
 
+def test_registration_search_and_count_share_the_status_filter(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
+    dao.search(status=RegistrationStatus.PENDING, limit=20, offset=40)
+    assert "WHERE g.status = %s" in fake_db.last_sql
+    assert "ORDER BY g.registration_date, g.id LIMIT %s OFFSET %s" in fake_db.last_sql
+    assert fake_db.last_params == ("PENDING", 20, 40)
+    fake_db.rows = [{"n": 3}]
+    assert dao.count_search(status=RegistrationStatus.PENDING) == 3
+    assert fake_db.last_sql.endswith("WHERE g.status = %s") and fake_db.last_params == ("PENDING",)
+    fake_db.rows = []  # the count row above is not a registration row
+    dao.search(status=None)
+    assert "WHERE" not in fake_db.last_sql  # every status
+    fake_db.rows = [{"n": 3}]
+    assert dao.count_search() == 3 and fake_db.last_params == ()
+
+
+def test_registration_count_for_activity_binds_statuses_and_can_lock(
+    fake_db: FakeDatabaseManager,
+) -> None:
+    fake_db.rows = [{"n": 2}]
+    dao = RegistrationDAO(fake_db)  # type: ignore[arg-type]
+    assert dao.count_for_activity(9, [RegistrationStatus.APPROVED], for_update=True) == 2
+    assert "status IN (%s) LOCK IN SHARE MODE" in fake_db.last_sql
+    assert fake_db.last_params == (9, "APPROVED")
+    assert dao.count_for_activity(9, []) == 0  # no statuses: no query
+    assert fake_db.last_params == (9, "APPROVED")  # unchanged, nothing was run
+
+
 def test_registration_reopen_resets_review_fields(fake_db: FakeDatabaseManager) -> None:
     assert RegistrationDAO(fake_db).reopen(7)  # type: ignore[arg-type]
     assert "reviewed_by = NULL" in fake_db.last_sql

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from app.models.base_entity import BaseEntity
 from app.models.enums import SLOT_TAKING_STATUSES, RegistrationStatus
@@ -25,6 +25,7 @@ class Registration(BaseEntity):
 
     # Filled by joins for list pages (not stored here)
     activity_title: str | None = field(default=None, compare=False)
+    activity_date: date | None = field(default=None, compare=False)
     volunteer_name: str | None = field(default=None, compare=False)
 
     @property
