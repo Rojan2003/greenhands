@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from app.dao.base_dao import BaseDAO
@@ -173,6 +173,27 @@ class RegistrationDAO(BaseDAO):
             "WHERE g.user_id = %s ORDER BY a.activity_date DESC",
             (user_id,),
         )
+
+    def report_rows(
+        self, *, date_from: date | None = None, date_to: date | None = None
+    ) -> list[dict[str, Any]]:
+        """Raw rows for VolunteerHoursReport: one per registration with volunteer + activity."""
+        sql = (
+            "SELECT u.id AS user_id, u.username, "
+            "CONCAT(u.first_name, ' ', u.last_name) AS volunteer_name, g.status, "
+            "a.title AS activity_title, a.activity_date, a.start_time, a.end_time "
+            "FROM registrations g JOIN users u ON u.id = g.user_id "
+            "JOIN activities a ON a.id = g.activity_id WHERE 1 = 1"
+        )
+        params: list[Any] = []
+        if date_from is not None:
+            sql += " AND a.activity_date >= %s"
+            params.append(date_from)
+        if date_to is not None:
+            sql += " AND a.activity_date <= %s"
+            params.append(date_to)
+        sql += " ORDER BY u.last_name, u.first_name, a.activity_date, g.id"
+        return self.db.fetch_all(sql, tuple(params))
 
     # ---- writes ----
     def insert(self, registration: Registration) -> int:

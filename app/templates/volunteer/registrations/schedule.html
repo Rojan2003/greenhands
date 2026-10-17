@@ -41,7 +41,10 @@
 <section class="card mt-8">
   <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
     <h2 class="text-lg font-bold text-brand-dark">Upcoming</h2>
-    <a href="{{ url_for('registrations.list_registrations') }}" class="text-sm font-medium text-brand hover:underline">Manage registrations</a>
+    <div class="flex items-center gap-4">
+      <a href="{{ url_for('registrations.report') }}" class="text-sm font-medium text-brand hover:underline">My activity report</a>
+      <a href="{{ url_for('registrations.list_registrations') }}" class="text-sm font-medium text-brand hover:underline">Manage registrations</a>
+    </div>
   </div>
   {% if schedule.upcoming %}
   <ul class="divide-y divide-gray-100">{% for reg in schedule.upcoming %}{{ row(reg) }}{% endfor %}</ul>

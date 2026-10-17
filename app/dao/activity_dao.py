@@ -174,6 +174,44 @@ class ActivityDAO(BaseDAO):
         )
         return int(row["n"]) if row else 0
 
+    def report_rows(
+        self,
+        *,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status: ActivityStatus | None = None,
+    ) -> list[dict[str, Any]]:
+        """Raw rows for ActivityParticipationReport: one per activity with slot counts.
+
+        The counts come from one LEFT JOIN + conditional SUM, so an activity nobody
+        registered for still appears with zeros. Filters are optional and only added
+        when given (values stay %s parameters).
+        """
+        sql = (
+            "SELECT a.id, a.title, a.activity_date, a.start_time, a.end_time, a.status, "
+            "a.max_volunteers, l.location_name, "
+            "COALESCE(SUM(r.status = 'PENDING'), 0) AS pending, "
+            "COALESCE(SUM(r.status = 'APPROVED'), 0) AS approved, "
+            "COALESCE(SUM(r.status = 'COMPLETED'), 0) AS completed "
+            "FROM activities a JOIN locations l ON l.id = a.location_id "
+            "LEFT JOIN registrations r ON r.activity_id = a.id WHERE 1 = 1"
+        )
+        params: list[Any] = []
+        if date_from is not None:
+            sql += " AND a.activity_date >= %s"
+            params.append(date_from)
+        if date_to is not None:
+            sql += " AND a.activity_date <= %s"
+            params.append(date_to)
+        if status is not None:
+            sql += " AND a.status = %s"
+            params.append(status.value)
+        sql += (
+            " GROUP BY a.id, a.title, a.activity_date, a.start_time, a.end_time, a.status, "
+            "a.max_volunteers, l.location_name ORDER BY a.activity_date, a.start_time, a.id"
+        )
+        return self.db.fetch_all(sql, tuple(params))
+
     # ---- writes ----
     def insert(self, activity: Activity) -> int:
         new_id = self.db.execute(
