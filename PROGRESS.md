@@ -33,8 +33,8 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] Independent code review (2026-10-17) and fixes: FR-8 error page no longer crashes for logged-in users when MySQL is down; failed-login counter is incremented under a row lock (`SELECT ... FOR UPDATE`) so parallel guesses cannot skip the lockout; deactivated accounts lose their session on the next request; passwords are limited to 72 *bytes*; `next=` redirect survives the login form and rejects `/\host`; rate limits now have tests (`tests/integration/test_auth_hardening.py`)
 
 ### Next session
-1. Approve pushing `main` (see open questions), then open pull requests for `feat/project-setup`, `feat/auth` and `feat/profile`.
-2. Start Phase 3 (admin users list, locations, activities).
+1. Review and merge the `feat/admin-manage` pull request (Phase 3).
+2. Start Phase 4 (browse activities for volunteers: reuse `Page` + `partials/_pagination.html` and `ActivityDAO.search()`).
 
 ### Open questions
 - **Remote `main` branch:** GitHub has no `main` yet (the repo was empty, so `feat/project-setup` became the default). Approve pushing the first scaffolding commit to `main` so pull requests can be opened.
@@ -57,11 +57,15 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 updated; README notes `scripts/upgrade_db.py` and the uploads folder
 - [x] Review fixes: new passwords are limited to 72 *bytes* (shared `check_password_strength()` in `app/schemas/auth.py`, used by sign-up and change password); the avatar file is written inside the database transaction; photos moved out of `app/static` behind a login-protected route; integration test asserts the real birth-date error, not the form hint
 
-## Phase 3: Admin activities and locations
-- [ ] Users list for admins with "Reset password" and activate/deactivate (replaces "Forgot password?")
-- [ ] Locations CRUD
-- [ ] Activities CRUD; delete with registrations sets CANCELLED
-- [ ] Audit log on every create / update / delete / cancel
+## Phase 3: Admin activities and locations (branch `feat/admin-manage`, ready for review)
+- [x] Users list for admins with "Reset password" and activate/deactivate (replaces "Forgot password?"): `/admin/volunteers` (`app/controllers/admin_volunteers.py`, `templates/admin/volunteers.html`), 20 per page, search on name / username / email (`UserDAO.search_volunteers()` / `count_volunteers()`, LIKE wildcard in the value); `AdminUserService` (`app/services/admin_user_service.py`) lists volunteers only, refuses self-deactivation and admin targets, generates a 12-character temporary password with `secrets` (letter + digit guaranteed, no look-alike characters), stores only its hash, flashes it ONCE to the admin and notifies the volunteer
+- [x] Locations CRUD: `/admin/locations` list with activity counts (`LocationDAO.list_with_activity_counts()`, LEFT JOIN + COUNT), new / edit (shared `templates/admin/locations/form.html`) and delete (`app/controllers/admin_locations.py`); `LocationSchema` (`app/schemas/location.py`); `LocationService` refuses duplicate names (inline field error) and deleting a location that still has activities
+- [x] Activities CRUD; delete with registrations sets CANCELLED: `/admin/activities` list (10 per page, `?status=` filter, slots taken / max from `Activity.available_slots`), new / edit (shared `templates/admin/activities/form.html`, location drop-down), delete and status change (`app/controllers/admin_activities.py`); `ActivitySchema` (`app/schemas/activity.py`) parses the form text and refuses a past date only on create (validation context), end time must be after start; `ActivityService` keeps `max_volunteers` >= taken slots on edit, `delete_or_cancel()` deletes only when nobody ever registered, otherwise sets CANCELLED and notifies every PENDING / APPROVED registrant (`RegistrationDAO.list_user_ids_by_activity()`); `change_status()` to CANCELLED follows the same path
+- [x] Audit log on every create / update / delete / cancel: `LOCATION_CREATED` / `_UPDATED` / `_DELETED`, `ACTIVITY_CREATED` / `_UPDATED` / `_DELETED` / `_CANCELLED` / `_STATUS_CHANGED` ("OPEN -> CLOSED"), `USER_ACTIVATED` / `USER_DEACTIVATED`, `PASSWORD_RESET` (details never contain the password), all written in the same transaction as the change
+- [x] Shared pieces for later phases: `Page` dataclass (`app/services/pagination.py`) + `partials/_pagination.html` macro `paginate(page_obj, endpoint, **filters)`; `select_field` and `textarea_field` macros in `partials/_forms.html`; `status_badge` knows ACTIVE / INACTIVE
+- [x] Navigation: sidebar "Manage Activities", "Manage Locations" and "Volunteers" open the new pages (highlighted on every page of their blueprint); the admin dashboard's "Total Activities" and "Total Volunteers" cards link to the lists ("Registrations", "Reports", "Audit Logs" stay at `#` until their phases)
+- [x] Tests: `tests/unit/test_schemas_location_activity.py`, `test_location_service.py`, `test_activity_service.py`, `test_admin_user_service.py`, `test_pagination.py`, new DAO tests in `test_dao.py`; `tests/integration/test_admin_manage_flow.py` (403 for volunteers on every admin route, locations CRUD + duplicate name + delete refused, activities create / edit / filter / pagination / status change, delete-vs-cancel with notifications only for PENDING / APPROVED, volunteers search / pagination / deactivate blocks login / reset password then the temporary password logs in); `tests/e2e/test_admin_activities.py` (Playwright: admin creates a location and an activity through the forms, changes its status through the row form with `confirm()`). 371 unit+integration and 4 e2e tests pass
+- [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 and Usability updated
 
 ## Phase 4: Browse activities
 - [ ] OPEN activities list with search, filters (date, location, keyword) and pagination

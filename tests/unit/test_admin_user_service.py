@@ -147,6 +147,7 @@ def make_service(
     ("method", "args"),
     [
         ("list_volunteers_page", ()),
+        ("get", (5,)),
         ("set_active", (5, False)),
         ("reset_password", (5,)),
     ],
@@ -190,6 +191,18 @@ def test_list_volunteers_page_treats_blank_search_as_no_search() -> None:
     service, _, users, _, _ = make_service(make_volunteer())
     service.list_volunteers_page(make_admin(), search="   ", page=0)
     assert users.search_calls == [(None, 20, 0)]
+
+
+# -------------------------------------------------------------------- get
+def test_get_returns_the_volunteer_and_refuses_admins_and_unknown_ids() -> None:
+    volunteer = make_volunteer()
+    service, _, _, _, _ = make_service(volunteer, make_admin(id=2, username="boss"))
+
+    assert service.get(make_admin(), 5) is volunteer
+    with pytest.raises(ConflictError, match="Administrator accounts"):
+        service.get(make_admin(), 2)
+    with pytest.raises(NotFoundError):
+        service.get(make_admin(), 99)
 
 
 # ------------------------------------------------------------ set_active

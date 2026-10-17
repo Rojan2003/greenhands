@@ -92,6 +92,11 @@ class AdminUserService:
         total = self.users.count_volunteers(text)
         return Page(items=items, page=page, per_page=per_page, total=total)
 
+    def get(self, actor: Person, user_id: int) -> Person:
+        """One volunteer account (the controller needs the username for its messages)."""
+        require_role(actor, RoleName.ADMIN)
+        return self._get_volunteer(user_id)
+
     # ------------------------------------------------- activate / deactivate
     def set_active(self, actor: Person, user_id: int, active: bool) -> Person:
         """Flip users.status between ACTIVE and INACTIVE, with the self-lockout guard."""
