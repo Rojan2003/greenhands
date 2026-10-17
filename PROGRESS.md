@@ -63,9 +63,15 @@ one failure case), audit logging where needed, and a responsive UI.
 - [ ] Activities CRUD; delete with registrations sets CANCELLED
 - [ ] Audit log on every create / update / delete / cancel
 
-## Phase 4: Browse activities
-- [ ] OPEN activities list with search, filters (date, location, keyword) and pagination
-- [ ] Details page with computed available slots
+## Phase 4: Browse activities (branch `feat/browse-activities`, ready for review)
+- [x] DAO: `ActivityDAO.search()` / `count_search()` gained `date_from` (shared `_search_filters()` so list and count never drift; LIKE wildcard stays in the value) and `list_upcoming_open()` (`app/dao/activity_dao.py`)
+- [x] Schema: `BrowseFilterSchema` (`app/schemas/browse.py`): keyword (max 100), location, exact date, page; `from_query()` is tolerant and drops bad URL values instead of showing an error page
+- [x] `BrowseService` (`app/services/browse_service.py`): `list_open()` returns a `Page[Activity]` (12 per page, OPEN and dated today or later, soonest first, an out-of-range page clamps to the last page), `locations_for_filter()`, `get_activity()` (NotFoundError -> 404 page), `upcoming()`; every method accepts VOLUNTEER and ADMIN via `require_role` (`app/services/pagination.py` holds the generic `Page[T]`)
+- [x] OPEN activities list with search, filters (date, location, keyword) and pagination: `app/controllers/activities.py` (`GET /activities`), `templates/volunteer/activities/list.html` (GET filter form, cards in 1/2/3 columns, slots left or "Full", status badge, empty state with clear-filters link), `partials/_pagination.html` (`paginate()` macro: "Showing X-Y of Z" + Previous/Next links that keep the filters), `select_field()` macro in `partials/_forms.html`
+- [x] Details page with computed available slots: `GET /activities/<id>`, `templates/volunteer/activities/detail.html` (description, requirements, location address and details, slots computed from PENDING + APPROVED registrations, disabled "Register" button with "Registration opens in the next phase", "Back to activities")
+- [x] Volunteer dashboard "Upcoming activities" (3 soonest OPEN activities with links, or an empty state); sidebar "Activities" link and dashboard card "Browse Activities" open the list (`app/navigation.py`, `templates/volunteer/dashboard.html`)
+- [x] Tests: `tests/unit/test_schemas_browse.py`, `tests/unit/test_browse_service.py` (fake DAOs), `tests/unit/test_dao.py` (date_from and upcoming SQL), `tests/integration/test_browse_flow.py` (only OPEN future activities listed, filters, 13 activities -> 2 pages with the filters kept in the links, slots from PENDING + APPROVED only, 404 page, admin can view, anonymous redirected, dashboard upcoming), `tests/e2e/test_browse.py` (Playwright: filter by keyword, open details, see the slots text)
+- [x] REQUIREMENTS.md rows FR-3, FR-4 and NFR Performance updated
 
 ## Phase 5: Register for an activity
 - [ ] Checks: OPEN, not already registered, slots available

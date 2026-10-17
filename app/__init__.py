@@ -68,6 +68,7 @@ def create_app(
 
     # --- controllers (blueprints) ---
     from app.auth.loader import register_user_loader
+    from app.controllers.activities import activities_bp
     from app.controllers.admin import admin_bp
     from app.controllers.auth import auth_bp
     from app.controllers.main import main_bp
@@ -76,7 +77,7 @@ def create_app(
     from app.navigation import build_nav, nav_icon
 
     register_user_loader(login_manager)
-    for blueprint in (main_bp, auth_bp, volunteer_bp, profile_bp, admin_bp):
+    for blueprint in (main_bp, auth_bp, volunteer_bp, profile_bp, activities_bp, admin_bp):
         app.register_blueprint(blueprint)
     app.context_processor(build_nav)
     app.jinja_env.globals["nav_icon"] = nav_icon

@@ -50,7 +50,6 @@ class BrowseService:
         """
         require_role(actor, *BROWSE_ROLES)
         date_from = today or date.today()
-        page = clamp_page(filters.page)
         total = self.activities.count_search(
             keyword=filters.keyword,
             location_id=filters.location_id,
@@ -58,6 +57,9 @@ class BrowseService:
             date_from=date_from,
             status=ActivityStatus.OPEN,
         )
+        # ?page=99 on a two-page list lands on the last page instead of an empty one.
+        last_page = Page[Activity](per_page=PER_PAGE, total=total).pages
+        page = min(clamp_page(filters.page), last_page)
         items = self.activities.search(
             keyword=filters.keyword,
             location_id=filters.location_id,

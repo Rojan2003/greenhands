@@ -20,3 +20,29 @@
   {% endif %}
 </div>
 {%- endmacro %}
+
+{# Dropdown. `options` is a list of (value, label) pairs; `blank` is the label of the
+   "no choice" first option (e.g. "All locations"); `selected` is the current value. #}
+{% macro select_field(name, label, options, selected=None, blank=None, errors=None, hint=None, required=False) -%}
+{% set errs = errors or {} %}
+<div>
+  <label for="{{ name }}" class="block text-sm font-medium text-gray-700">
+    {{ label }}{% if required %} <span class="text-red-600" aria-hidden="true">*</span>{% endif %}
+  </label>
+  <select id="{{ name }}" name="{{ name }}"
+          {% if required %}required aria-required="true"{% endif %}
+          {% if errs.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% elif hint %}aria-describedby="{{ name }}-hint"{% endif %}
+          class="mt-1 block w-full rounded-lg border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                 {% if errs.get(name) %}border-red-400 focus:border-red-500 focus:ring-red-200{% else %}border-gray-300 focus:border-brand focus:ring-brand/30{% endif %}">
+    {% if blank is not none %}<option value="">{{ blank }}</option>{% endif %}
+    {% for value, text in options %}
+    <option value="{{ value }}" {% if selected is not none and value|string == selected|string %}selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+  {% if errs.get(name) %}
+  <p id="{{ name }}-error" class="mt-1 text-xs text-red-600">{{ errs.get(name) }}</p>
+  {% elif hint %}
+  <p id="{{ name }}-hint" class="mt-1 text-xs text-gray-400">{{ hint }}</p>
+  {% endif %}
+</div>
+{%- endmacro %}

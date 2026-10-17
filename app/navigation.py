@@ -88,7 +88,7 @@ def _nav_for_current_user() -> Nav:
     else:
         items = [
             _item("Dashboard", "home", "volunteer.dashboard"),
-            _item("Activities", "tree", None),
+            _item("Activities", "tree", "activities.list_activities", section="activities"),
             _item("My Registrations", "list", None),
             _item("My Profile", "user", "profile.view", section="profile"),
             _item("Notifications", "bell", None),
