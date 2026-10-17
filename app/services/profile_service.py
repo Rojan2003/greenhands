@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.auth.passwords import hash_password, verify_password
 from app.auth.roles import require_role
@@ -115,7 +115,7 @@ class ProfileService:
         return user
 
     # --------------------------------------------------------------- edit
-    def update_profile(self, actor: Person, form: dict[str, object]) -> Volunteer:
+    def update_profile(self, actor: Person, form: dict[str, Any]) -> Volunteer:
         """Validate, then save users + volunteer_profiles + audit entry together."""
         require_role(actor, RoleName.VOLUNTEER)
         data = validate(ProfileSchema, form)
@@ -158,7 +158,7 @@ class ProfileService:
         return user
 
     # ----------------------------------------------------------- password
-    def change_password(self, actor: Person, form: dict[str, object]) -> None:
+    def change_password(self, actor: Person, form: dict[str, Any]) -> None:
         """Require the current password, then store a new bcrypt hash."""
         require_role(actor, RoleName.VOLUNTEER)
         data = validate(ChangePasswordSchema, form)

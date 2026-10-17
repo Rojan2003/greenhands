@@ -32,8 +32,8 @@ one failure case), audit logging where needed, and a responsive UI.
 - [x] REQUIREMENTS.md rows FR-1, FR-2, FR-4, FR-6 and Usability updated
 
 ### Next session
-1. Approve pushing `main` (see open questions), then open pull requests for `feat/project-setup` and `feat/auth`.
-2. Decide on "Forgot password?" and "Change Photo", then start Phase 2 (volunteer profile).
+1. Approve pushing `main` (see open questions), then open pull requests for `feat/project-setup`, `feat/auth` and `feat/profile`.
+2. Start Phase 3 (admin users list, locations, activities).
 
 ### Open questions
 - **Remote `main` branch:** GitHub has no `main` yet (the repo was empty, so `feat/project-setup` became the default). Approve pushing the first scaffolding commit to `main` so pull requests can be opened.
@@ -43,11 +43,17 @@ one failure case), audit logging where needed, and a responsive UI.
   "Forgot password?" has no email service in the brief, so the login page will say "Forgot your password? Ask an administrator",
   and Phase 3 gives admins a "Reset password" action on the users list (temporary password, audit-logged).
 
-## Phase 2: Volunteer profile
-- [ ] View / edit profile with validation (names, phone, address, birth date, emergency contact)
-- [ ] Change password (current password required)
-- [ ] Change Photo: upload, type/size checks, default avatar fallback
-- [ ] Audit log entries for profile and password changes
+## Phase 2: Volunteer profile (branch `feat/profile`, ready for review)
+- [x] Schema: `users.photo_path` in `database/schema.sql`; `scripts/upgrade_db.py` adds missing columns to an existing database without wiping data (run it after pulling)
+- [x] Pydantic schemas `ProfileSchema` / `ChangePasswordSchema` (`app/schemas/profile.py`): names 1-50, phone shape, address, birth date in the past and 13+, emergency contact; new password follows the sign-up rules and must differ from the current one
+- [x] `ProfileService` (`app/services/profile_service.py`): every method VOLUNTEER-only (`require_role`); profile update upserts the `volunteer_profiles` row; password change verifies the current password; `check_photo()` accepts PNG/JPG/WEBP by extension AND magic bytes, max 2 MB
+- [x] View / edit profile with validation (names, phone, address, birth date, emergency contact): `app/controllers/profile.py` (`/profile`, `/profile/edit`), `templates/volunteer/profile.html`, `profile_edit.html`
+- [x] Change password (current password required): `/profile/password`, `templates/volunteer/change_password.html`; passwords are never echoed back
+- [x] Change Photo: upload, type/size checks, default avatar fallback: inline form on the profile page posting to `/profile/photo`; files land in `app/static/uploads/avatars/user_<id>.<ext>` (git-ignored); `partials/_avatar.html` shows the photo or initials in the header and on the profile page; oversized uploads get a friendly 413 page (`MAX_CONTENT_LENGTH` in `app/config.py`)
+- [x] Audit log entries for profile and password changes: `PROFILE_UPDATED` (changed field names only, never values), `PASSWORD_CHANGED`, `PHOTO_UPDATED`
+- [x] Navigation: "My Profile" sidebar link (`app/navigation.py`, highlighted on every `/profile` page), dashboard card "Edit Profile" opens the profile; login page says "Forgot your password? Ask an administrator."
+- [x] Tests: `tests/unit/test_schemas_profile.py`, `tests/unit/test_profile_service.py` (fake DAOs, photo checks), `tests/unit/test_dao.py` (photo/password updates), `tests/integration/test_profile_flow.py` (view, 403 for admins, edit + audit, inline errors, password change + re-login, photo upload to a temp folder, bad file, 413), `tests/e2e/test_profile.py` (Playwright: edit phone from My Profile)
+- [x] REQUIREMENTS.md rows FR-3, FR-4, FR-6 updated; README notes `scripts/upgrade_db.py` and the uploads folder
 
 ## Phase 3: Admin activities and locations
 - [ ] Users list for admins with "Reset password" and activate/deactivate (replaces "Forgot password?")
