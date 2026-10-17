@@ -38,13 +38,19 @@ one failure case), audit logging where needed, and a responsive UI.
 ### Open questions
 - **Remote `main` branch:** GitHub has no `main` yet (the repo was empty, so `feat/project-setup` became the default). Approve pushing the first scaffolding commit to `main` so pull requests can be opened.
 - `docs/design/erd.png` and `docs/design/reference.png` are still missing from the repo.
-- "Forgot password?" link and "Change Photo" button: build now or later? (needed before Phase 2)
+- ~~"Forgot password?" link and "Change Photo" button~~ Decided 2026-10-17 (blanket approval from Rojan):
+  "Change Photo" is built in Phase 2 as part of the profile page (upload, size/type validation, stored under `app/static/uploads/`).
+  "Forgot password?" has no email service in the brief, so the login page will say "Forgot your password? Ask an administrator",
+  and Phase 3 gives admins a "Reset password" action on the users list (temporary password, audit-logged).
 
 ## Phase 2: Volunteer profile
-- [ ] View / edit profile with validation
-- [ ] Decide: "Forgot password?" and "Change Photo" now or later
+- [ ] View / edit profile with validation (names, phone, address, birth date, emergency contact)
+- [ ] Change password (current password required)
+- [ ] Change Photo: upload, type/size checks, default avatar fallback
+- [ ] Audit log entries for profile and password changes
 
 ## Phase 3: Admin activities and locations
+- [ ] Users list for admins with "Reset password" and activate/deactivate (replaces "Forgot password?")
 - [ ] Locations CRUD
 - [ ] Activities CRUD; delete with registrations sets CANCELLED
 - [ ] Audit log on every create / update / delete / cancel
