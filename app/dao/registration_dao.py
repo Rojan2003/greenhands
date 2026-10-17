@@ -12,7 +12,7 @@ from app.models import Registration, RegistrationStatus
 _SELECT = """
 SELECT g.id, g.activity_id, g.user_id, g.status, g.registration_date, g.reviewed_at,
        g.reviewed_by, g.remarks,
-       a.title AS activity_title,
+       a.title AS activity_title, a.activity_date,
        CONCAT(u.first_name, ' ', u.last_name) AS volunteer_name
 FROM registrations g
 JOIN activities a ON a.id = g.activity_id
@@ -33,6 +33,9 @@ class RegistrationDAO(BaseDAO):
             reviewed_by=row["reviewed_by"],
             remarks=row["remarks"],
             activity_title=row.get("activity_title"),
+            activity_date=BaseDAO.to_date(row["activity_date"])
+            if row.get("activity_date")
+            else None,
             volunteer_name=row.get("volunteer_name"),
         )
 
@@ -67,6 +70,32 @@ class RegistrationDAO(BaseDAO):
         )
         return [self.to_model(r) for r in rows]
 
+    def search(
+        self, *, status: RegistrationStatus | None = None, limit: int = 20, offset: int = 0
+    ) -> list[Registration]:
+        """One page for the admin review list: oldest request first so nobody waits longest.
+
+        `status=None` means every status. `search` and `count_search` share
+        `_status_filter` so the page and its total can never disagree.
+        """
+        where, params = self._status_filter(status)
+        rows = self.db.fetch_all(
+            _SELECT + where + " ORDER BY g.registration_date, g.id LIMIT %s OFFSET %s",
+            (*params, limit, offset),
+        )
+        return [self.to_model(r) for r in rows]
+
+    def count_search(self, *, status: RegistrationStatus | None = None) -> int:
+        where, params = self._status_filter(status)
+        row = self.db.fetch_one("SELECT COUNT(*) AS n FROM registrations g" + where, params)
+        return int(row["n"]) if row else 0
+
+    @staticmethod
+    def _status_filter(status: RegistrationStatus | None) -> tuple[str, tuple[Any, ...]]:
+        if status is None:
+            return "", ()
+        return " WHERE g.status = %s", (status.value,)
+
     def list_recent(self, limit: int = 10) -> list[Registration]:
         rows = self.db.fetch_all(
             _SELECT + "ORDER BY g.registration_date DESC, g.id DESC LIMIT %s", (limit,)
@@ -87,6 +116,31 @@ class RegistrationDAO(BaseDAO):
         if for_update:
             sql += " LOCK IN SHARE MODE"
         row = self.db.fetch_one(sql, (activity_id,))
+        return int(row["n"]) if row else 0
+
+    def count_for_activity(
+        self,
+        activity_id: int,
+        statuses: Iterable[RegistrationStatus],
+        *,
+        for_update: bool = False,
+    ) -> int:
+        """Rows of one activity in the given statuses (e.g. APPROVED only, for approval).
+
+        Like `count_slot_taking`, `for_update=True` adds LOCK IN SHARE MODE so a caller
+        holding the activity row lock reads the latest committed count.
+        """
+        values = [status.value for status in statuses]
+        if not values:
+            return 0
+        placeholders = ", ".join(["%s"] * len(values))
+        sql = (
+            "SELECT COUNT(*) AS n FROM registrations WHERE activity_id = %s "
+            "AND status IN (" + placeholders + ")"
+        )
+        if for_update:
+            sql += " LOCK IN SHARE MODE"
+        row = self.db.fetch_one(sql, (activity_id, *values))
         return int(row["n"]) if row else 0
 
     def count_by_status(self) -> dict[str, int]:

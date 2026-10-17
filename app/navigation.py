@@ -90,7 +90,12 @@ def _nav_for_current_user() -> Nav:
                 "admin_locations.list_locations",
                 section="admin_locations",
             ),
-            _item("Registrations", "list", None),
+            _item(
+                "Registrations",
+                "list",
+                "admin_registrations.list_registrations",
+                section="admin_registrations",
+            ),
             _item(
                 "Volunteers",
                 "users",
