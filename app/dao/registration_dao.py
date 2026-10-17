@@ -73,13 +73,20 @@ class RegistrationDAO(BaseDAO):
         )
         return [self.to_model(r) for r in rows]
 
-    def count_slot_taking(self, activity_id: int) -> int:
-        """How many slots are used: PENDING + APPROVED (never stored on the activity)."""
-        row = self.db.fetch_one(
+    def count_slot_taking(self, activity_id: int, *, for_update: bool = False) -> int:
+        """How many slots are used: PENDING + APPROVED (never stored on the activity).
+
+        `for_update=True` makes it a locking read (LOCK IN SHARE MODE) for use inside a
+        transaction that already holds the activity row lock: InnoDB then returns the
+        latest committed count instead of the transaction's snapshot.
+        """
+        sql = (
             "SELECT COUNT(*) AS n FROM registrations "
-            "WHERE activity_id = %s AND status IN ('PENDING', 'APPROVED')",
-            (activity_id,),
+            "WHERE activity_id = %s AND status IN ('PENDING', 'APPROVED')"
         )
+        if for_update:
+            sql += " LOCK IN SHARE MODE"
+        row = self.db.fetch_one(sql, (activity_id,))
         return int(row["n"]) if row else 0
 
     def count_by_status(self) -> dict[str, int]:
