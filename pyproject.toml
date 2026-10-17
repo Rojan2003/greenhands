@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-exclude = ["venv", ".venv", ".tools", "migrations/versions/*.py.mako"]
+exclude = ["venv", ".venv", ".tools", "database"]
 
 [tool.ruff.lint]
 select = [
@@ -25,8 +25,6 @@ select = [
 ]
 ignore = ["B008"]  # function call in argument default (used by Flask/Pydantic patterns)
 
-[tool.ruff.lint.per-file-ignores]
-"migrations/versions/*.py" = ["E501"]
 
 # ---------------------------------------------------------------------------
 # mypy: static type checking
