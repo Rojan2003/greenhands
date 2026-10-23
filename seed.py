@@ -315,8 +315,8 @@ def run(big: bool = False) -> None:
         role=RoleName.ADMIN,
         username="admin",
         email="admin@greenhands.local",
-        first_name="Alex",
-        last_name="Rivera",
+        first_name="Nicole",
+        last_name="Borines",
         phone="0917-111-1111",
         password=admin_password,
     )
